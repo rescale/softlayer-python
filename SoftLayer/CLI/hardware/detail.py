@@ -2,6 +2,7 @@
 # :license: MIT, see LICENSE for more details.
 
 import click
+import json
 
 import SoftLayer
 from SoftLayer.CLI import environment
@@ -18,8 +19,10 @@ from SoftLayer import utils
 @click.option('--price',
               is_flag=True,
               help='Show associated prices')
+@click.option('--output-json', is_flag=True, default=False)
+@click.option('--verbose', is_flag=True, default=False)
 @environment.pass_env
-def cli(env, identifier, passwords, price):
+def cli(env, identifier, passwords, price, output_json, verbose):
     """Get details for a hardware device."""
 
     hardware = SoftLayer.HardwareManager(env.client)
@@ -33,6 +36,28 @@ def cli(env, identifier, passwords, price):
                                      'hardware')
     result = hardware.get_hardware(hardware_id)
     result = utils.NestedDict(result)
+
+    if output_json:
+        if verbose:
+            env.fout(json.dumps(result))
+        else:
+            partial = {k: result[k] for k in
+                       ['id',
+                        'primaryIpAddress',
+                        'primaryBackendIpAddress',
+                        'hostname',
+                        'fullyQualifiedDomainName',
+                        'operatingSystem'
+                       ]}
+            partial['osPlatform'] = partial\
+                                    ['operatingSystem']\
+                                    ['softwareLicense']\
+                                    ['softwareDescription']\
+                                    ['name']
+            env.fout(json.dumps(partial))
+        return
+
+
 
     table.add_row(['id', result['id']])
     table.add_row(['guid', result['globalIdentifier'] or formatting.blank()])

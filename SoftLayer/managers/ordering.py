@@ -199,3 +199,9 @@ class OrderingManager(object):
         container = self.generate_order_template(quote_id, extra,
                                                  quantity=quantity)
         return self.client['Product_Order'].placeOrder(container)
+
+    def get_order(self, order_id, mask=None):
+        return self.client['Billing_Order'].getObject(
+            id=order_id,
+            mask=mask
+        )

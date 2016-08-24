@@ -166,6 +166,8 @@ ALL_ROUTES = [
     ('nas', 'SoftLayer.CLI.nas'),
     ('nas:list', 'SoftLayer.CLI.nas.list:cli'),
     ('nas:credentials', 'SoftLayer.CLI.nas.credentials:cli'),
+    ('nas:grant-access', 'SoftLayer.CLI.nas.grant_access:cli'),
+    ('nas:detail', 'SoftLayer.CLI.nas.detail:cli'),
 
     ('object-storage', 'SoftLayer.CLI.object_storage'),
     ('object-storage:accounts',
@@ -192,6 +194,7 @@ ALL_ROUTES = [
     ('hardware:reload', 'SoftLayer.CLI.hardware.reload:cli'),
     ('hardware:credentials', 'SoftLayer.CLI.hardware.credentials:cli'),
     ('hardware:update-firmware', 'SoftLayer.CLI.hardware.update_firmware:cli'),
+    ('hardware:status', 'SoftLayer.CLI.hardware.status:cli'),
 
     ('snapshot', 'SoftLayer.CLI.snapshot'),
     ('snapshot:cancel', 'SoftLayer.CLI.snapshot.cancel:cli'),
