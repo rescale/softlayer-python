@@ -2,6 +2,7 @@
 # :license: MIT, see LICENSE for more details.
 
 import click
+import json
 
 import SoftLayer
 from SoftLayer.CLI import columns as column_helper
@@ -61,9 +62,10 @@ DEFAULT_COLUMNS = [
               % ', '.join(column.name for column in COLUMNS),
               default=','.join(DEFAULT_COLUMNS),
               show_default=True)
+@click.option('--output-json', is_flag=True, default=False)
 @environment.pass_env
 def cli(env, sortby, cpu, domain, datacenter, hostname, memory, network, tag,
-        columns):
+        columns, output_json):
     """List hardware servers."""
 
     manager = SoftLayer.HardwareManager(env.client)
@@ -77,6 +79,9 @@ def cli(env, sortby, cpu, domain, datacenter, hostname, memory, network, tag,
                                     tags=tag,
                                     mask=columns.mask())
 
+    if output_json:
+        env.fout(json.dumps({'hardware': servers}))
+        return
     table = formatting.Table(columns.columns)
     table.sortby = sortby
 
