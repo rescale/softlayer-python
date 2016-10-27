@@ -2,6 +2,7 @@
 # :license: MIT, see LICENSE for more details.
 
 import click
+import json
 
 import SoftLayer
 from SoftLayer.CLI import environment
@@ -161,6 +162,39 @@ def _parse_create_args(client, args):
 @click.option('--boot-mode', type=click.STRING,
               help="Specify the mode to boot the OS in. Supported modes are HVM and PV.")
 @click.option('--billing', type=click.Choice(['hourly', 'monthly']), default='hourly', show_default=True,
+@click.command(epilog="See 'slcli vs create-options' for valid options")
+@click.option('--hostnames', '-H',
+              help="Hosts portion of the FQDN",
+              required=True,
+              prompt=True)
+@click.option('--domain', '-D',
+              help="Domain portion of the FQDN",
+              required=True,
+              prompt=True)
+@click.option('--cpu', '-c',
+              help="Number of CPU cores (not available with flavors)",
+              type=click.INT)
+@click.option('--memory', '-m',
+              help="Memory in mebibytes (not available with flavors)",
+              type=virt.MEM_TYPE)
+@click.option('--flavor', '-f',
+              help="Public Virtual Server flavor key name",
+              type=click.STRING)
+@click.option('--datacenter', '-d',
+              help="Datacenter shortname",
+              required=True,
+              prompt=True)
+@click.option('--os', '-o',
+              help="OS install code. Tip: you can specify <OS>_LATEST")
+@click.option('--image',
+              help="Image ID. See: 'slcli image list' for reference")
+@click.option('--boot-mode',
+              help="Specify the mode to boot the OS in. Supported modes are HVM and PV.",
+              type=click.STRING)
+@click.option('--billing',
+              type=click.Choice(['hourly', 'monthly']),
+              default='hourly',
+              show_default=True,
               help="Billing rate")
 @click.option('--dedicated/--public', is_flag=True, help="Create a Dedicated Virtual Server")
 @click.option('--host-id', type=click.INT, help="Host Id to provision a Dedicated Host Virtual Server onto")
@@ -203,6 +237,36 @@ def _parse_create_args(client, args):
 @click.option('--ipv6', is_flag=True, help="Adds an IPv6 address to this guest")
 @click.option('--transient', is_flag=True,
               help="Create a transient virtual server")
+@click.option('--userfile', '-F',
+              help="Read userdata from file",
+              type=click.Path(exists=True, readable=True, resolve_path=True))
+@click.option('--vlan-public',
+              help="The ID of the public VLAN on which you want the virtual "
+                   "server placed",
+              type=click.INT)
+@click.option('--vlan-private',
+              help="The ID of the private VLAN on which you want the virtual "
+                   "server placed",
+              type=click.INT)
+@click.option('--subnet-public',
+              help="The ID of the public SUBNET on which you want the virtual server placed",
+              type=click.INT)
+@click.option('--subnet-private',
+              help="The ID of the private SUBNET on which you want the virtual server placed",
+              type=click.INT)
+@helpers.multi_option('--public-security-group',
+                      '-S',
+                      help=('Security group ID to associate with '
+                            'the public interface'))
+@helpers.multi_option('--private-security-group',
+                      '-s',
+                      help=('Security group ID to associate with '
+                            'the private interface'))
+@click.option('--wait',
+              type=click.INT,
+              help="Wait until VS is finished provisioning for up to X "
+                   "seconds before returning")
+@click.option('--output-json', is_flag=True)
 @environment.pass_env
 def cli(env, **args):
     """Order/create virtual servers."""
@@ -239,7 +303,20 @@ def cli(env, **args):
             if ready is False:
                 env.out(env.fmt(output))
                 raise exceptions.CLIHalt(code=1)
+        if args['output_json']:
+            env.fout(json.dumps(result))
+        else:
+            for instance_data in result:
+                table = formatting.KeyValueTable(['name', 'value'])
+                table.align['name'] = 'r'
+                table.align['value'] = 'l'
+                table.add_row(['id', instance_data['id']])
+                table.add_row(['hostname', instance_data['hostname']])
+                table.add_row(['created', instance_data['createDate']])
+                table.add_row(['uuid', instance_data['uuid']])
+                output.append(table)
 
+            env.fout(output)
 
 def _build_receipt_table(result, billing="hourly", test=False):
     """Retrieve the total recurring fee of the items prices"""
