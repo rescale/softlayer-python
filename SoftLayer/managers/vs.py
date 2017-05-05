@@ -721,19 +721,42 @@ class VSManager(utils.IdentifierMixin, object):
             notes = "Some notes about this image"
             result = mgr.capture(instance_id=12345, name=name, notes=notes)
         """
-        vsi = self.get_instance(instance_id)
 
-        disk_filter = lambda x: x['device'] == '0'
-        # Skip disk 1 (swap partition) and CD mounts
-        if additional_disks:
-            disk_filter = lambda x: (str(x['device']) != '1' and
-                                     x['mountType'] != 'CD')
+        vsi = self.client.call(
+            'Virtual_Guest',
+            'getObject',
+            id=instance_id,
+            mask="""id,
+            blockDevices[id,device,mountType,
+            diskImage[id,metadataFlag,type[keyName]]]""")
 
-        disks = [block_device for block_device in vsi['blockDevices']
-                 if disk_filter(block_device)]
+        disks_to_capture = []
+        for block_device in vsi['blockDevices']:
+
+            # We never want metadata disks
+            if utils.lookup(block_device, 'diskImage', 'metadataFlag'):
+                continue
+
+            # We never want swap devices
+            type_name = utils.lookup(block_device,
+                                     'diskImage',
+                                     'type',
+                                     'keyName')
+            if type_name == 'SWAP':
+                continue
+
+            # We never want CD images
+            if block_device['mountType'] == 'CD':
+                continue
+
+            # Only use the first block device if we don't want additional disks
+            if not additional_disks and str(block_device['device']) != '0':
+                continue
+
+            disks_to_capture.append(block_device)
 
         return self.guest.createArchiveTransaction(
-            name, disks, notes, id=instance_id)
+            name, disks_to_capture, notes, id=instance_id)
 
     def upgrade(self, instance_id, cpus=None, memory=None,
                 nic_speed=None, public=True):
@@ -800,11 +823,14 @@ class VSManager(utils.IdentifierMixin, object):
         ]
         mask = "mask[%s]" % ','.join(mask)
 
-        package_type = "VIRTUAL_SERVER_INSTANCE"
-        package_id = self.ordering_manager.get_package_id_by_type(package_type)
-        package_service = self.client['Product_Package']
+        package_keyname = "CLOUD_SERVER"
+        package = self.ordering_manager.get_package_by_key(package_keyname)
 
-        return package_service.getItems(id=package_id, mask=mask)
+        if package is None:
+            raise ValueError("No package found for key: " + package_keyname)
+
+        package_service = self.client['Product_Package']
+        return package_service.getItems(id=package['id'], mask=mask)
 
     def _get_price_id_for_upgrade(self, package_items, option, value,
                                   public=True):

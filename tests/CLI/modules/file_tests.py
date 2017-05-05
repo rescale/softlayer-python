@@ -86,7 +86,8 @@ class FileTests(testing.TestCase):
                 'ip_addr': '127.0.0.1',
                 'storage_type': 'ENDURANCE',
                 'username': 'user',
-                'active_transactions': None
+                'active_transactions': None,
+                'mount_addr': '127.0.0.1:/TEST'
             }],
             json.loads(result.output))
 
@@ -120,8 +121,9 @@ class FileTests(testing.TestCase):
         self.assertEqual({
             'Username': 'username',
             'Used Space': '0B',
-            'Endurance Tier': '2 IOPS per GB',
+            'Endurance Tier': 'READHEAVY_TIER',
             'IOPs': 1000,
+            'Mount Address': '127.0.0.1:/TEST',
             'Snapshot Capacity (GB)': '10',
             'Snapshot Used (Bytes)': 1024,
             'Capacity (GB)': '20GB',
@@ -149,31 +151,29 @@ class FileTests(testing.TestCase):
     def test_volume_order_performance_iops_not_given(self):
         result = self.run_command(['file', 'volume-order',
                                    '--storage-type=performance', '--size=20',
-                                   '--os-type=linux', '--location=dal05'])
+                                   '--location=dal05'])
 
         self.assertEqual(2, result.exit_code)
 
     def test_volume_order_performance_iops_out_of_range(self):
         result = self.run_command(['file', 'volume-order',
                                    '--storage-type=performance', '--size=20',
-                                   '--iops=80000', '--os-type=linux',
-                                   '--location=dal05'])
+                                   '--iops=80000', '--location=dal05'])
 
         self.assertEqual(2, result.exit_code)
 
     def test_volume_order_performance_iops_not_multiple_of_100(self):
         result = self.run_command(['file', 'volume-order',
                                    '--storage-type=performance', '--size=20',
-                                   '--iops=122', '--os-type=linux',
-                                   '--location=dal05'])
+                                   '--iops=122', '--location=dal05'])
 
         self.assertEqual(2, result.exit_code)
 
     def test_volume_order_performance_snapshot_error(self):
         result = self.run_command(['file', 'volume-order',
                                    '--storage-type=performance', '--size=20',
-                                   '--iops=100', '--os-type=linux',
-                                   '--location=dal05', '--snapshot-size=10'])
+                                   '--iops=100', '--location=dal05',
+                                   '--snapshot-size=10'])
 
         self.assertEqual(2, result.exit_code)
 
@@ -192,8 +192,7 @@ class FileTests(testing.TestCase):
 
         result = self.run_command(['file', 'volume-order',
                                    '--storage-type=performance', '--size=20',
-                                   '--iops=100', '--os-type=linux',
-                                   '--location=dal05'])
+                                   '--iops=100', '--location=dal05'])
 
         self.assert_no_fail(result)
         self.assertEqual(result.output,
@@ -204,7 +203,7 @@ class FileTests(testing.TestCase):
     def test_volume_order_endurance_tier_not_given(self):
         result = self.run_command(['file', 'volume-order',
                                    '--storage-type=endurance', '--size=20',
-                                   '--os-type=linux', '--location=dal05'])
+                                   '--location=dal05'])
 
         self.assertEqual(2, result.exit_code)
 
@@ -224,8 +223,8 @@ class FileTests(testing.TestCase):
 
         result = self.run_command(['file', 'volume-order',
                                    '--storage-type=endurance', '--size=20',
-                                   '--tier=0.25', '--os-type=linux',
-                                   '--location=dal05', '--snapshot-size=10'])
+                                   '--tier=0.25', '--location=dal05',
+                                   '--snapshot-size=10'])
 
         self.assert_no_fail(result)
         self.assertEqual(result.output,
@@ -240,13 +239,34 @@ class FileTests(testing.TestCase):
 
         result = self.run_command(['file', 'volume-order',
                                    '--storage-type=endurance', '--size=20',
-                                   '--tier=0.25', '--os-type=linux',
-                                   '--location=dal05'])
+                                   '--tier=0.25', '--location=dal05'])
 
         self.assert_no_fail(result)
         self.assertEqual(result.output,
                          'Order could not be placed! Please verify '
                          'your options and try again.\n')
+
+    @mock.patch('SoftLayer.FileStorageManager.order_file_volume')
+    def test_volume_order_performance_manager_error(self, order_mock):
+        order_mock.side_effect = ValueError('failure!')
+
+        result = self.run_command(['file', 'volume-order',
+                                   '--storage-type=performance', '--size=20',
+                                   '--iops=100', '--location=dal05'])
+
+        self.assertEqual(2, result.exit_code)
+        self.assertEqual('Argument Error: failure!', result.exception.message)
+
+    @mock.patch('SoftLayer.FileStorageManager.order_file_volume')
+    def test_volume_order_endurance_manager_error(self, order_mock):
+        order_mock.side_effect = ValueError('failure!')
+
+        result = self.run_command(['file', 'volume-order',
+                                   '--storage-type=endurance', '--size=20',
+                                   '--tier=0.25', '--location=dal05'])
+
+        self.assertEqual(2, result.exit_code)
+        self.assertEqual('Argument Error: failure!', result.exception.message)
 
     def test_enable_snapshots(self):
         result = self.run_command(['file', 'snapshot-enable', '12345678',
@@ -398,3 +418,51 @@ class FileTests(testing.TestCase):
                          ' > 20 GB Storage Space\n'
                          ' > 10 GB Storage Space (Snapshot Space)\n'
                          ' > 20 GB Storage Space Replicant of: TEST\n')
+
+    def test_replication_locations(self):
+        result = self.run_command(['file', 'replica-locations', '1234'])
+        self.assert_no_fail(result)
+        self.assertEqual(
+            {
+                '12345': 'Dallas 05',
+            },
+            json.loads(result.output))
+
+    @mock.patch('SoftLayer.FileStorageManager.get_replication_locations')
+    def test_replication_locations_unsuccessful(self, locations_mock):
+        locations_mock.return_value = False
+        result = self.run_command(['file', 'replica-locations', '1234'])
+        self.assertEqual('No data centers compatible for replication.\n',
+                         result.output)
+
+    def test_replication_partners(self):
+        result = self.run_command(['file', 'replica-partners', '1234'])
+        self.assert_no_fail(result)
+        self.assertEqual([
+            {
+                'ID': 1784,
+                'Account ID': 3000,
+                'Capacity (GB)': 20,
+                'Host ID': None,
+                'Guest ID': None,
+                'Hardware ID': None,
+                'Username': 'TEST_REP_1',
+            },
+            {
+                'ID': 1785,
+                'Account ID': 3001,
+                'Host ID': None,
+                'Guest ID': None,
+                'Hardware ID': None,
+                'Capacity (GB)': 20,
+                'Username': 'TEST_REP_2',
+            }],
+            json.loads(result.output))
+
+    @mock.patch('SoftLayer.FileStorageManager.get_replication_partners')
+    def test_replication_partners_unsuccessful(self, partners_mock):
+        partners_mock.return_value = False
+        result = self.run_command(['file', 'replica-partners', '1234'])
+        self.assertEqual(
+            'There are no replication partners for the given volume.\n',
+            result.output)

@@ -21,7 +21,7 @@ getObject = {
     'password': '',
     'serviceProviderId': 1,
     'iops': 1000,
-    'storageTierLevel': {'description': '2 IOPS per GB'},
+    'storageTierLevel': 'READHEAVY_TIER',
     'snapshotCapacityGb': '10',
     'parentVolume': {'snapshotSizeBytes': 1024},
     'osType': {'keyName': 'LINUX'},
@@ -31,6 +31,7 @@ getObject = {
     }],
     'serviceResource': {'datacenter': {'id': 449500, 'name': 'dal05'}},
     'serviceResourceBackendIpAddress': '10.1.2.3',
+    'fileNetworkMountAddress': '127.0.0.1:/TEST',
     'serviceResourceName': 'Storage Type 01 Aggregate staaspar0101_pc01',
     'username': 'username',
     'storageType': {'keyName': 'ENDURANCE_STORAGE'},
@@ -83,12 +84,16 @@ getObject = {
         'id': 1784,
         'username': 'TEST_REP_1',
         'serviceResourceBackendIpAddress': '10.3.174.79',
+        'nasType': 'ISCSI_REPLICANT',
+        'createDate': '2017:50:15-04:00',
         'serviceResource': {'datacenter': {'name': 'wdc01'}},
         'replicationSchedule': {'type': {'keyname': 'REPLICATION_HOURLY'}},
     }, {
         'id': 1785,
         'username': 'TEST_REP_2',
         'serviceResourceBackendIpAddress': '10.3.177.84',
+        'nasType': 'ISCSI_REPLICANT',
+        'createDate': '2017:50:15-04:00',
         'serviceResource': {'datacenter': {'name': 'dal01'}},
         'replicationSchedule': {'type': {'keyname': 'REPLICATION_DAILY'}},
     }],
@@ -100,6 +105,41 @@ getSnapshots = [{
     'snapshotCreationTimestamp': '2016-07-06T07:41:19-05:00',
     'snapshotSizeBytes': '42',
 }]
+
+getReplicationPartners = [{
+    'id': 1784,
+    'accountId': 3000,
+    'capacityGb': 20,
+    'username': 'TEST_REP_1',
+    'serviceResourceBackendIpAddress': '10.3.174.79',
+    'nasType': 'ISCSI_REPLICANT',
+    'hostId': None,
+    'guestId': None,
+    'hardwareId': None,
+    'createDate': '2017:50:15-04:00',
+    'serviceResource': {'datacenter': {'name': 'wdc01'}},
+    'replicationSchedule': {'type': {'keyname': 'REPLICATION_HOURLY'}},
+}, {
+    'id': 1785,
+    'accountId': 3001,
+    'capacityGb': 20,
+    'username': 'TEST_REP_2',
+    'serviceResourceBackendIpAddress': '10.3.177.84',
+    'nasType': 'ISCSI_REPLICANT',
+    'hostId': None,
+    'guestId': None,
+    'hardwareId': None,
+    'createDate': '2017:50:15-04:00',
+    'serviceResource': {'datacenter': {'name': 'dal01'}},
+    'replicationSchedule': {'type': {'keyname': 'REPLICATION_DAILY'}},
+}]
+
+getValidReplicationTargetDatacenterLocations = [{
+    'id': 12345,
+    'longName': 'Dallas 05',
+    'name': 'dal05'
+}]
+
 
 deleteObject = True
 allowAccessFromHostList = True

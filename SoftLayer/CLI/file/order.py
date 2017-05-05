@@ -27,18 +27,7 @@ CONTEXT_SETTINGS = {'token_normalize_func': lambda x: x.upper()}
 @click.option('--tier',
               help='Endurance Storage Tier (IOP per GB)'
               '  [required for storage-type endurance]',
-              type=click.Choice(['0.25', '2', '4']))
-@click.option('--os-type',
-              help='Operating System',
-              type=click.Choice([
-                  'HYPER_V',
-                  'LINUX',
-                  'VMWARE',
-                  'WINDOWS_2008',
-                  'WINDOWS_GPT',
-                  'WINDOWS',
-                  'XEN']),
-              required=True)
+              type=click.Choice(['0.25', '2', '4', '10']))
 @click.option('--location',
               help='Datacenter short name (e.g.: dal09)',
               required=True)
@@ -48,7 +37,7 @@ CONTEXT_SETTINGS = {'token_normalize_func': lambda x: x.upper()}
               'space along with endurance file storage; specifies '
               'the size (in GB) of snapshot space to order')
 @environment.pass_env
-def cli(env, storage_type, size, iops, tier, os_type,
+def cli(env, storage_type, size, iops, tier,
         location, snapshot_size):
     """Order a file storage volume."""
     file_manager = SoftLayer.FileStorageManager(env.client)
@@ -79,8 +68,7 @@ def cli(env, storage_type, size, iops, tier, os_type,
                 storage_type='performance_storage_nfs',
                 location=location,
                 size=size,
-                iops=iops,
-                os_type=os_type
+                iops=iops
             )
         except ValueError as ex:
             raise exceptions.ArgumentError(str(ex))
@@ -88,7 +76,9 @@ def cli(env, storage_type, size, iops, tier, os_type,
     if storage_type == 'endurance':
         if tier is None:
             raise exceptions.CLIAbort(
-                'Option --tier required with Endurance in IOPS/GB [0.25,2,4]')
+                'Option --tier required with Endurance in IOPS/GB '
+                '[0.25,2,4,10]'
+            )
 
         try:
             order = file_manager.order_file_volume(
@@ -96,7 +86,6 @@ def cli(env, storage_type, size, iops, tier, os_type,
                 location=location,
                 size=size,
                 tier_level=float(tier),
-                os_type=os_type,
                 snapshot_size=snapshot_size
             )
         except ValueError as ex:

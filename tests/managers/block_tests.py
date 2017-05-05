@@ -44,6 +44,9 @@ class BlockTests(testing.TestCase):
 
         self.assert_called_with('SoftLayer_Account', 'getIscsiNetworkStorage')
 
+        result = self.block.list_block_volumes(datacenter="dal09", storage_type="Endurance", username="username")
+        self.assert_called_with('SoftLayer_Account', 'getIscsiNetworkStorage')
+
     def test_get_block_volume_access_list(self):
         result = self.block.get_block_volume_access_list(100)
 
@@ -75,6 +78,25 @@ class BlockTests(testing.TestCase):
             'SoftLayer_Network_Storage',
             'deleteObject',
             identifier=100)
+
+    def test_order_block_volume_invalid_location(self):
+        mock = self.set_mock('SoftLayer_Location_Datacenter', 'getDatacenters')
+        mock.return_value = []
+
+        exception = self.assertRaises(
+            exceptions.SoftLayerError,
+            self.block.order_block_volume,
+            "performance_storage_iscsi",
+            "dal05",
+            100,
+            "LINUX",
+            iops=100,
+        )
+
+        self.assertEqual(str(exception), "Invalid datacenter name "
+                                         "specified. Please provide the "
+                                         "lower case short name "
+                                         "(e.g.: dal09)")
 
     def test_order_block_volume_no_package(self):
         mock = self.set_mock('SoftLayer_Product_Package', 'getAllObjects')
@@ -114,6 +136,47 @@ class BlockTests(testing.TestCase):
             identifier=123,
         )
 
+    def test_cancel_snapshot_exception_1(self):
+        mock = self.set_mock('SoftLayer_Network_Storage', 'getObject')
+        mock.return_value = {
+            'capacityGb': 20,
+            'snapshotCapacityGb': '10',
+            'schedules': [{
+                'id': 7770,
+                'type': {'keyname': 'SNAPSHOT_WEEKLY'}
+            }],
+            'billingItem': {
+                'categoryCode': 'storage_service_enterprise',
+                'cancellationDate': '2016-09-04T22:00:00-07:00'
+            }
+        }
+        self.assertRaises(
+            exceptions.SoftLayerError,
+            self.block.cancel_snapshot_space,
+            12345,
+            immediate=True
+        )
+
+    def test_cancel_snapshot_exception_2(self):
+        mock = self.set_mock('SoftLayer_Network_Storage', 'getObject')
+        mock.return_value = {
+            'capacityGb': 20,
+            'snapshotCapacityGb': '10',
+            'schedules': [{
+                'id': 7770,
+                'type': {'keyname': 'SNAPSHOT_WEEKLY'}
+            }],
+            'billingItem': {
+                'activeChildren': []
+            }
+        }
+        self.assertRaises(
+            exceptions.SoftLayerError,
+            self.block.cancel_snapshot_space,
+            12345,
+            immediate=True
+        )
+
     def test_replicant_failover(self):
         result = self.block.failover_to_replicant(1234, 5678, immediate=True)
 
@@ -136,6 +199,38 @@ class BlockTests(testing.TestCase):
             'failbackFromReplicant',
             args=(5678,),
             identifier=1234,
+        )
+
+    def test_get_replication_partners(self):
+        self.block.get_replication_partners(1234)
+
+        self.assert_called_with(
+            'SoftLayer_Network_Storage',
+            'getReplicationPartners',
+            identifier=1234,
+        )
+
+    def test_get_replication_locations(self):
+        self.block.get_replication_locations(1234)
+
+        self.assert_called_with(
+            'SoftLayer_Network_Storage',
+            'getValidReplicationTargetDatacenterLocations',
+            identifier=1234,
+        )
+
+    def test_order_block_volume_invalid_storage_type(self):
+        mock = self.set_mock('SoftLayer_Product_Package', 'getAllObjects')
+        mock.return_value = [{}]
+
+        self.assertRaises(
+            exceptions.SoftLayerError,
+            self.block.order_block_volume,
+            "something_completely_different",
+            "dal05",
+            100,
+            "LINUX",
+            iops=100,
         )
 
     def test_order_block_volume_performance(self):
@@ -544,6 +639,98 @@ class BlockTests(testing.TestCase):
                     'setupFee': '1'}],
                 },
             )
+        result = self.block.order_snapshot_space(100, 5, None, True)
+
+        self.assertEqual(
+            result,
+            {
+                'orderId': 1234,
+                'orderDate': '2013-08-01 15:23:45',
+                'prices': [{
+                    'hourlyRecurringFee': '2',
+                    'id': 1,
+                    'item': {'description': 'this is a thing', 'id': 1},
+                    'laborFee': '2',
+                    'oneTimeFee': '2',
+                    'oneTimeFeeTax': '.1',
+                    'quantity': 1,
+                    'recurringFee': '2',
+                    'recurringFeeTax': '.1',
+                    'setupFee': '1'}],
+                },
+            )
+
+    def test_order_snapshot_space_invalid_category(self):
+        mock = self.set_mock('SoftLayer_Product_Package', 'getAllObjects')
+        mock.return_value = [{
+            'id': 240,
+            'name': 'Endurance',
+            'items': [{
+                'capacity': '0',
+            }, {
+                'capacity': '5',
+                'prices': [{
+                    'locationGroupId': '530',
+                    }],
+            }, {
+                'capacity': '5',
+                'prices': [{
+                    'locationGroupId': '',
+                    'categories': [{
+                        'categoryCode': 'storage_block',
+                    }],
+                }],
+            }, {
+                'capacity': '5',
+                'prices': [{
+                    'locationGroupId': '',
+                    'categories': [{
+                        'categoryCode': 'storage_snapshot_space',
+                    }],
+                    'capacityRestrictionMinimum': '300',
+                }],
+            }, {
+                'capacity': '5',
+                'prices': [{
+                    'locationGroupId': '',
+                    'categories': [{
+                        'categoryCode': 'storage_snapshot_space',
+                    }],
+                    'capacityRestrictionMinimum': '100',
+                    'capacityRestrictionMaximum': '100',
+                }],
+            }, {
+                'capacity': '5',
+                'prices': [{
+                    'id': 46130,
+                    'locationGroupId': '',
+                    'categories': [{
+                        'categoryCode': 'storage_snapshot_space',
+                    }],
+                    'capacityRestrictionMinimum': '200',
+                    'capacityRestrictionMaximum': '200',
+                }],
+            }],
+        }]
+
+        billing_item_mock = self.set_mock('SoftLayer_Network_Storage',
+                                          'getObject')
+        billing_item_mock.return_value = {
+            'billingItem': {
+                'categoryCode': 'not_storage_service_enterprise'
+            }
+        }
+
+        exception = self.assertRaises(
+            exceptions.SoftLayerError,
+            self.block.order_snapshot_space,
+            100,
+            5,
+            None,
+            False
+        )
+        self.assertEqual(str(exception), "Block volume storage_type must be "
+                                         "Endurance")
 
     def test_order_block_replicant_invalid_location(self):
         self.assertRaises(

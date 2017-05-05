@@ -3,8 +3,8 @@
 Command-line Interface
 ======================
 
-The SoftLayer command line interface is available via the `sl` command
-available in your `PATH`.  The `sl` command is a reference implementation of
+The SoftLayer command line interface is available via the `slcli` command
+available in your `PATH`.  The `slcli` command is a reference implementation of
 SoftLayer API bindings for python and how to efficiently make API calls. See
 the :ref:`usage-examples` section to see how to discover all of the
 functionality not fully documented here.
@@ -54,52 +54,58 @@ To see more about the config file format, see :ref:`config_file`.
 
 Usage Examples
 --------------
-To discover the available commands, simply type `sl`.
+To discover the available commands, simply type `slcli`.
 ::
 
-	$ sl
-	Usage: slcli [OPTIONS] COMMAND [ARGS]...
-
-	  SoftLayer Command-line Client
-
-	Options:
-	  --format [table|raw|json]  Output format
-	  -C, --config PATH          Config file location
-	  --debug [0|1|2|3]          Sets the debug noise level
-	  -v, --verbose              Sets the debug noise level
-	  --timings                  Time each API call and display after results
-	  --proxy TEXT               HTTP[S] proxy to be use to make API calls
-	  -y, --really               Confirm all prompt actions
-	  --fixtures                 Use fixtures instead of actually making API calls
-	  --version                  Show the version and exit.
-	  --help                     Show this message and exit.
-
-	Commands:
-	  call-api   Call arbitrary API endpoints.
-	  cdn        Content Delivery Network.
-	  config     CLI configuration.
-	  dns        Domain Name System.
-	  firewall   Firewalls.
-	  globalip   Global IP addresses.
-	  image      Compute images.
-	  iscsi      iSCSI storage.
-	  loadbal    Load balancers.
-	  messaging  Message queue service.
-	  metadata   Find details about this machine.
-	  nas        Network Attached Storage.
-	  rwhois     Referral Whois.
-	  server     Hardware servers.
-	  snapshot   Snapshots.
-	  sshkey     SSH Keys.
-	  ssl        SSL Certificates.
-	  subnet     Network subnets.
-	  summary    Account summary.
-	  ticket     Support tickets.
-	  vlan       Network VLANs.
-	  vs         Virtual Servers.
-
-	  To use most commands your SoftLayer username and api_key need to be
-	  configured. The easiest way to do that is to use: 'slcli setup'
+	$ slcli
+        Usage: slcli [OPTIONS] COMMAND [ARGS]...
+        
+          SoftLayer Command-line Client
+        
+        Options:
+          --format [table|raw|json|jsonraw]
+                                          Output format  [default: table]
+          -C, --config PATH               Config file location  [default:
+                                          ~/.softlayer]
+          -v, --verbose                   Sets the debug noise level, specify multiple
+                                          times for more verbosity.
+          --proxy TEXT                    HTTP[S] proxy to be use to make API calls
+          -y, --really / --not-really     Confirm all prompt actions
+          --demo / --no-demo              Use demo data instead of actually making API
+                                          calls
+          --version                       Show the version and exit.
+          -h, --help                      Show this message and exit.
+        
+        Commands:
+          block           Block Storage.
+          call-api        Call arbitrary API endpoints.
+          cdn             Content Delivery Network.
+          config          CLI configuration.
+          dns             Domain Name System.
+          file            File Storage.
+          firewall        Firewalls.
+          globalip        Global IP addresses.
+          hardware        Hardware servers.
+          image           Compute images.
+          loadbal         Load balancers.
+          messaging       Message queue service.
+          metadata        Find details about this machine.
+          nas             Network Attached Storage.
+          object-storage  Object Storage.
+          report          Reports.
+          rwhois          Referral Whois.
+          setup           Edit configuration.
+          shell           Enters a shell for slcli.
+          sshkey          SSH Keys.
+          ssl             SSL Certificates.
+          subnet          Network subnets.
+          summary         Account summary.
+          ticket          Support tickets.
+          virtual         Virtual Servers.
+          vlan            Network VLANs.
+        
+          To use most commands your SoftLayer username and api_key need to be
+          configured. The easiest way to do that is to use: 'slcli setup'
 
 As you can see, there are a number of commands/sections. To look at the list of
 subcommands for virtual servers type `slcli vs`. For example:

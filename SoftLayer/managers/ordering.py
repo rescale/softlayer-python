@@ -205,3 +205,25 @@ class OrderingManager(object):
             id=order_id,
             mask=mask
         )
+
+    def get_package_by_key(self, package_keyname, mask=None):
+        """Get a single package with a given key.
+
+        If no packages are found, returns None
+
+        :param package_keyname string representing the package key name
+                            we are interested in.
+        :param string mask: Mask to specify the properties we want to retrieve
+        """
+        package_service = self.client['Product_Package']
+        _filter = {
+            'keyName': {
+                'operation': package_keyname,
+            },
+        }
+
+        packages = package_service.getAllObjects(mask=mask, filter=_filter)
+        if len(packages) == 0:
+            return None
+        else:
+            return packages.pop()

@@ -13,6 +13,7 @@ ENDURANCE_TIERS = {
     0.25: 100,
     2: 200,
     4: 300,
+    10: 1000,
 }
 
 
@@ -59,7 +60,7 @@ def populate_host_templates(host_templates,
 
 
 def get_package(manager, category_code):
-    """Returns a product packaged based on type of storage.
+    """Returns a product package based on type of storage.
 
     :param manager: The storage manager which calls this function.
     :param category_code: Category code of product package.
@@ -188,21 +189,21 @@ def find_endurance_tier_iops_per_gb(volume):
     :param volume: The volume for which the tier level is desired
     :return: Returns a float value indicating the IOPS per GB for the volume
     """
-    tier_description_split = volume['storageTierLevel']['description'].split()
+    tier = volume['storageTierLevel']
+    iops_per_gb = 0.25
 
-    if tier_description_split != []:
-        iops_per_gb = tier_description_split[0]
+    if tier == "LOW_INTENSITY_TIER":
+        iops_per_gb = 0.25
+    elif tier == "READHEAVY_TIER":
+        iops_per_gb = 2
+    elif tier == "WRITEHEAVY_TIER":
+        iops_per_gb = 4
+    elif tier == "10_IOPS_PER_GB":
+        iops_per_gb = 10
+    else:
+        raise ValueError("Could not find tier IOPS per GB for this volume")
 
-        if iops_per_gb == '0.25':
-            return 0.25
-
-        if iops_per_gb == '2':
-            return 2.0
-
-        if iops_per_gb == '4':
-            return 4.0
-
-    raise ValueError("Could not find tier IOPS per GB for this volume")
+    return iops_per_gb
 
 
 def find_performance_price(package, price_category):

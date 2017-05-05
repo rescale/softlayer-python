@@ -1,11 +1,55 @@
 # Change Log
 
-## [Unreleased]
- - Changes: https://github.com/softlayer/softlayer-python/compare/v5.2.0...HEAD
-
-### Added
+## [5.2.5] - 2017-05-05
+ - Changes: https://github.com/softlayer/softlayer-python/compare/v5.2.1...v5.2.5
+ 
+The SoftLayer_Network_Storage::storageTierLevel relational property changed in https://softlayer.github.io/release_notes/20170503/ , this version fixes problems caused by that.
 
 ### Changed
+ - https://github.com/softlayer/softlayer-python/issues/818
+ - https://github.com/softlayer/softlayer-python/pull/817
+ 
+## [5.2.4] - 2017-04-06
+ - Changes: https://github.com/softlayer/softlayer-python/compare/v5.2.3...v5.2.4
+ 
+### Changed
+Removed some debug code that was accidently added in the pypi release
+ 
+## [5.2.3] - 2017-04-05
+ - Changes: https://github.com/softlayer/softlayer-python/compare/v5.2.2...v5.2.3
+
+### Added
+ - Adds Python 3.6 support
+
+### Changed
+ - CLI+API: Removes the iSCSI manager and commands
+ - API: Fixes hardware order failing to find a single bare metal fast provision package to use
+
+## [5.2.2] - 2017-02-24
+ - Changes: https://github.com/softlayer/softlayer-python/compare/v5.2.1...v5.2.2
+
+### Added
+ - Adds release process documentation
+ - CLI: Displays NFS mount point for volumes in volume list and detail commands
+ - CLI+API: Enables `slcli file` and `block` storage commands to order tier 10 endurance storage and replica
+
+### Changed
+ - Updates docs to replace `sl` command with `slcli`
+ - CLI: Removes requirement to have `--os-type` provided for file storage ordering
+ - API: Fixes block storage ordering to handle size provided properly
+ - CLI: Fixes load balancer detail output so that JSON output is sane
+ - API: Includes check if object storage endpoints were provided by the API before trying to add them to the endpoints returned by `list_endpoints`
+
+## [5.2.1] - 2016-10-4
+ - Changes: https://github.com/softlayer/softlayer-python/compare/v5.2.0...v5.2.1
+
+### Added
+ - CLI: Adds a new 'jsonraw' format option that will print JSON without whitespace. This is useful for integrating the CLI with other tooling.
+
+### Changed
+ - API: Fixes JSON loading while using the REST transport with Python 3
+ - CLI+API: Metadata disks are now excluded when capturing "all" block devices with `slcli virtual capture --all`
+ - CLI: Fixes a bug where dns zone importing was not importing wildcard records
 
 ## [5.2.0] - 2016-08-25
  - Changes: https://github.com/softlayer/softlayer-python/compare/v5.1.0...v5.2.0

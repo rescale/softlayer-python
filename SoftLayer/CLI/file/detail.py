@@ -43,7 +43,7 @@ def cli(env, volume_id):
     if file_volume.get('storageTierLevel'):
         table.add_row([
             'Endurance Tier',
-            file_volume['storageTierLevel']['description'],
+            file_volume['storageTierLevel'],
         ])
 
     table.add_row([
@@ -54,6 +54,12 @@ def cli(env, volume_id):
         'Target IP',
         file_volume['serviceResourceBackendIpAddress'],
     ])
+
+    if file_volume['fileNetworkMountAddress']:
+        table.add_row([
+            'Mount Address',
+            file_volume['fileNetworkMountAddress'],
+        ])
 
     if file_volume['snapshotCapacityGb']:
         table.add_row([

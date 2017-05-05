@@ -17,7 +17,8 @@ CONTEXT_SETTINGS = {'token_normalize_func': lambda x: x.upper()}
               required=True)
 @click.option('--size',
               type=int,
-              help='Size of block storage volume in GB',
+              help='Size of block storage volume in GB. Permitted Sizes:\n'
+                   '20, 40, 80, 100, 250, 500, 1000, 2000, 4000, 8000, 12000',
               required=True)
 @click.option('--iops',
               type=int,
@@ -27,7 +28,7 @@ CONTEXT_SETTINGS = {'token_normalize_func': lambda x: x.upper()}
 @click.option('--tier',
               help='Endurance Storage Tier (IOP per GB)'
               '  [required for storage-type endurance]',
-              type=click.Choice(['0.25', '2', '4']))
+              type=click.Choice(['0.25', '2', '4', '10']))
 @click.option('--os-type',
               help='Operating System',
               type=click.Choice([
@@ -71,14 +72,14 @@ def cli(env, storage_type, size, iops, tier, os_type,
         if snapshot_size is not None:
             raise exceptions.CLIAbort(
                 'Option --snapshot-size not allowed for performance volumes.'
-                ' Snapshots are only available for endurance storage.'
+                'Snapshots are only available for endurance storage.'
             )
 
         try:
             order = block_manager.order_block_volume(
                 storage_type='performance_storage_iscsi',
                 location=location,
-                size=size,
+                size=int(size),
                 iops=iops,
                 os_type=os_type
             )
@@ -88,13 +89,15 @@ def cli(env, storage_type, size, iops, tier, os_type,
     if storage_type == 'endurance':
         if tier is None:
             raise exceptions.CLIAbort(
-                'Option --tier required with Endurance in IOPS/GB [0.25,2,4]')
+                'Option --tier required with Endurance in IOPS/GB '
+                '[0.25,2,4,10]'
+            )
 
         try:
             order = block_manager.order_block_volume(
                 storage_type='storage_service_enterprise',
                 location=location,
-                size=size,
+                size=int(size),
                 tier_level=float(tier),
                 os_type=os_type,
                 snapshot_size=snapshot_size
