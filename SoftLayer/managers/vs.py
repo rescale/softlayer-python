@@ -294,6 +294,7 @@ class VSManager(utils.IdentifierMixin, object):
             hostname=None, domain=None, local_disk=True,
             datacenter=None, os_code=None, image_id=None,
             dedicated=False, public_vlan=None, private_vlan=None,
+            private_subnet=None,
             userdata=None, nic_speed=None, disks=None, post_uri=None,
             private=False, ssh_keys=None):
         """Returns a dict appropriate to pass into Virtual_Guest::createObject
@@ -343,9 +344,13 @@ class VSManager(utils.IdentifierMixin, object):
                 'primaryNetworkComponent': {
                     "networkVlan": {"id": int(public_vlan)}}})
         if private_vlan:
-            data.update({
+            vlan_component = {
                 "primaryBackendNetworkComponent": {
-                    "networkVlan": {"id": int(private_vlan)}}})
+                    "networkVlan": {"id": int(private_vlan)}}}
+            if private_subnet:
+                vlan_component["primaryBackendNetworkComponent"]["networkVlan"]["primarySubnet"] = \
+                    {"id": int(private_subnet)}
+            data.update(vlan_component)
 
         if userdata:
             data['userData'] = [{'value': userdata}]

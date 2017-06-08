@@ -123,7 +123,10 @@ def _parse_create_args(client, args):
     
         if args.get('vlan_private'):
             data['private_vlan'] = args['vlan_private']
-    
+
+        if args.get('subnet_private'):
+            data['private_subnet'] = args['subnet_private']
+
         if args.get('tag'):
             data['tags'] = ','.join(args['tag'])
 
@@ -206,6 +209,10 @@ def _parse_create_args(client, args):
               type=click.INT)
 @click.option('--vlan-private',
               help="The ID of the private VLAN on which you want the virtual "
+                   "server placed",
+              type=click.INT)
+@click.option('--subnet-private',
+              help="The ID of the private subnet on which you want the virtual "
                    "server placed",
               type=click.INT)
 @click.option('--wait',
