@@ -9,6 +9,8 @@ from SoftLayer import exceptions
 from SoftLayer.managers import storage_utils
 from SoftLayer import utils
 
+# pylint: disable=too-many-public-methods
+
 
 class FileStorageManager(utils.IdentifierMixin, object):
     """Manages file Storage volumes."""
@@ -36,7 +38,8 @@ class FileStorageManager(utils.IdentifierMixin, object):
                 'serviceResource.datacenter[name]',
                 'serviceResourceBackendIpAddress',
                 'activeTransactionCount',
-                'fileNetworkMountAddress'
+                'fileNetworkMountAddress',
+                'replicationPartnerCount'
             ]
             kwargs['mask'] = ','.join(items)
 
@@ -49,7 +52,7 @@ class FileStorageManager(utils.IdentifierMixin, object):
             utils.query_filter('*FILE_STORAGE*'))
         if storage_type:
             _filter['nasNetworkStorage']['storageType']['keyName'] = (
-                utils.query_filter('%s_FILE_STORAGE' % storage_type.upper()))
+                utils.query_filter('%s_FILE_STORAGE*' % storage_type.upper()))
 
         if datacenter:
             _filter['nasNetworkStorage']['serviceResource']['datacenter'][
@@ -84,8 +87,11 @@ class FileStorageManager(utils.IdentifierMixin, object):
                 'serviceResourceBackendIpAddress',
                 'fileNetworkMountAddress',
                 'storageTierLevel',
-                'iops',
+                'provisionedIops',
                 'lunId',
+                'originalVolumeName',
+                'originalSnapshotName',
+                'originalVolumeSize',
                 'activeTransactionCount',
                 'activeTransactions.transactionStatus[friendlyName]',
                 'replicationPartnerCount',
@@ -109,7 +115,7 @@ class FileStorageManager(utils.IdentifierMixin, object):
         if 'mask' not in kwargs:
             items = [
                 'id',
-                'allowedVirtualGuests[allowedHost[credential]]',
+                'allowedVirtualGuests[allowedHost[credential, sourceSubnet]]',
                 'allowedHardware[allowedHost[credential]]',
                 'allowedSubnets[allowedHost[credential]]',
                 'allowedIpAddresses[allowedHost[credential]]',
@@ -132,10 +138,11 @@ class FileStorageManager(utils.IdentifierMixin, object):
                 'snapshotSizeBytes',
                 'storageType[keyName]',
                 'snapshotCreationTimestamp',
+                'intervalSchedule',
                 'hourlySchedule',
                 'dailySchedule',
                 'weeklySchedule'
-                ]
+            ]
             kwargs['mask'] = ','.join(items)
 
         return self.client.call('Network_Storage', 'getSnapshots',
@@ -207,15 +214,16 @@ class FileStorageManager(utils.IdentifierMixin, object):
         :return: Returns a SoftLayer_Container_Product_Order_Receipt
         """
 
-        file_mask = 'billingItem[activeChildren],storageTierLevel,'\
-                    'osType,snapshotCapacityGb,schedules,'\
-                    'hourlySchedule,dailySchedule,weeklySchedule'
+        file_mask = 'billingItem[activeChildren,hourlyFlag],'\
+                    'storageTierLevel,osType,staasVersion,'\
+                    'hasEncryptionAtRest,snapshotCapacityGb,schedules,'\
+                    'intervalSchedule,hourlySchedule,dailySchedule,'\
+                    'weeklySchedule,storageType[keyName],provisionedIops'
         file_volume = self.get_file_volume_details(volume_id,
                                                    mask=file_mask)
 
         order = storage_utils.prepare_replicant_order_object(
-            self, volume_id, snapshot_schedule, location, tier,
-            file_volume, 'file'
+            self, snapshot_schedule, location, tier, file_volume, 'file'
         )
 
         return self.client.call('Product_Order', 'placeOrder', order)
@@ -240,6 +248,71 @@ class FileStorageManager(utils.IdentifierMixin, object):
                                 'getValidReplicationTargetDatacenterLocations',
                                 id=volume_id)
 
+    def order_duplicate_volume(self, origin_volume_id, origin_snapshot_id=None,
+                               duplicate_size=None, duplicate_iops=None,
+                               duplicate_tier_level=None,
+                               duplicate_snapshot_size=None,
+                               hourly_billing_flag=False):
+        """Places an order for a duplicate file volume.
+
+        :param origin_volume_id: The ID of the origin volume to be duplicated
+        :param origin_snapshot_id: Origin snapshot ID to use for duplication
+        :param duplicate_size: Size/capacity for the duplicate volume
+        :param duplicate_iops: The IOPS per GB for the duplicate volume
+        :param duplicate_tier_level: Tier level for the duplicate volume
+        :param duplicate_snapshot_size: Snapshot space size for the duplicate
+        :param hourly_billing_flag: Billing type, monthly (False)
+            or hourly (True), default to monthly.
+        :return: Returns a SoftLayer_Container_Product_Order_Receipt
+        """
+
+        file_mask = 'id,billingItem[location,hourlyFlag],snapshotCapacityGb,'\
+                    'storageType[keyName],capacityGb,originalVolumeSize,'\
+                    'provisionedIops,storageTierLevel,'\
+                    'staasVersion,hasEncryptionAtRest'
+        origin_volume = self.get_file_volume_details(origin_volume_id,
+                                                     mask=file_mask)
+
+        order = storage_utils.prepare_duplicate_order_object(
+            self, origin_volume, duplicate_iops, duplicate_tier_level,
+            duplicate_size, duplicate_snapshot_size, 'file',
+            hourly_billing_flag
+        )
+
+        if origin_snapshot_id is not None:
+            order['duplicateOriginSnapshotId'] = origin_snapshot_id
+
+        return self.client.call('Product_Order', 'placeOrder', order)
+
+    def order_modified_volume(self, volume_id, new_size=None, new_iops=None, new_tier_level=None):
+        """Places an order for modifying an existing file volume.
+
+        :param volume_id: The ID of the volume to be modified
+        :param new_size: The new size/capacity for the volume
+        :param new_iops: The new IOPS for the volume
+        :param new_tier_level: The new tier level for the volume
+        :return: Returns a SoftLayer_Container_Product_Order_Receipt
+        """
+
+        mask_items = [
+            'id',
+            'billingItem',
+            'storageType[keyName]',
+            'capacityGb',
+            'provisionedIops',
+            'storageTierLevel',
+            'staasVersion',
+            'hasEncryptionAtRest',
+        ]
+        file_mask = ','.join(mask_items)
+        volume = self.get_file_volume_details(volume_id, mask=file_mask)
+
+        order = storage_utils.prepare_modify_order_object(
+            self, volume, new_iops, new_tier_level, new_size
+        )
+
+        return self.client.call('Product_Order', 'placeOrder', order)
+
     def delete_snapshot(self, snapshot_id):
         """Deletes the specified snapshot object.
 
@@ -248,73 +321,28 @@ class FileStorageManager(utils.IdentifierMixin, object):
         return self.client.call('Network_Storage', 'deleteObject',
                                 id=snapshot_id)
 
-    def order_file_volume(self, storage_type, location, size, os_type=None,
-                          iops=None, tier_level=None, snapshot_size=None):
+    def order_file_volume(self, storage_type, location, size,
+                          iops=None, tier_level=None, snapshot_size=None,
+                          service_offering='storage_as_a_service',
+                          hourly_billing_flag=False):
         """Places an order for a file volume.
 
-        :param storage_type: "performance_storage_iscsi" (performance)
-                             or "storage_service_enterprise" (endurance)
-        :param location: Datacenter in which to order iSCSI volume
+        :param storage_type: 'performance' or 'endurance'
+        :param location: Name of the datacenter in which to order the volume
         :param size: Size of the desired volume, in GB
-        :param os_type: Not used for file storage orders, leave None
         :param iops: Number of IOPs for a "Performance" order
         :param tier_level: Tier level to use for an "Endurance" order
         :param snapshot_size: The size of optional snapshot space,
-        if snapshot space should also be ordered (None if not ordered)
+            if snapshot space should also be ordered (None if not ordered)
+        :param service_offering: Requested offering package to use in the order
+            ('storage_as_a_service', 'enterprise', or 'performance')
+        :param hourly_billing_flag: Billing type, monthly (False)
+            or hourly (True), default to monthly.
         """
-        if os_type:
-            raise exceptions.SoftLayerError(
-                'OS type is not used on file storage orders')
-
-        try:
-            location_id = storage_utils.get_location_id(self, location)
-        except ValueError:
-            raise exceptions.SoftLayerError(
-                "Invalid datacenter name specified. "
-                "Please provide the lower case short name (e.g.: dal09)")
-
-        base_type_name = 'SoftLayer_Container_Product_Order_Network_'
-        package = storage_utils.get_package(self, storage_type)
-        if storage_type == 'performance_storage_nfs':
-            complex_type = base_type_name + 'PerformanceStorage_Nfs'
-            prices = [
-                storage_utils.find_performance_price(
-                    package,
-                    'performance_storage_nfs'
-                    ),
-                storage_utils.find_performance_space_price(package, size),
-                storage_utils.find_performance_iops_price(package, size, iops),
-            ]
-        elif storage_type == 'storage_service_enterprise':
-            complex_type = base_type_name + 'Storage_Enterprise'
-            prices = [
-                storage_utils.find_endurance_price(package, 'storage_file'),
-                storage_utils.find_endurance_price(
-                    package,
-                    'storage_service_enterprise'
-                    ),
-                storage_utils.find_endurance_space_price(
-                    package,
-                    size,
-                    tier_level
-                    ),
-                storage_utils.find_endurance_tier_price(package, tier_level),
-            ]
-            if snapshot_size is not None:
-                prices.append(storage_utils.find_snapshot_space_price(
-                    package, snapshot_size, tier_level))
-        else:
-            raise exceptions.SoftLayerError(
-                "File volume storage_type must be either "
-                "Performance or Endurance")
-
-        order = {
-            'complexType': complex_type,
-            'packageId': package['id'],
-            'prices': prices,
-            'quantity': 1,
-            'location': location_id,
-        }
+        order = storage_utils.prepare_volume_order_object(
+            self, storage_type, location, size, iops, tier_level,
+            snapshot_size, service_offering, 'file', hourly_billing_flag
+        )
 
         return self.client.call('Product_Order', 'placeOrder', order)
 
@@ -329,21 +357,16 @@ class FileStorageManager(utils.IdentifierMixin, object):
         return self.client.call('Network_Storage', 'createSnapshot',
                                 notes, id=volume_id, **kwargs)
 
-    def enable_snapshots(self, volume_id, schedule_type, retention_count,
-                         minute, hour, day_of_week, **kwargs):
+    def enable_snapshots(self, volume_id, schedule_type, retention_count, minute, hour, day_of_week, **kwargs):
         """Enables snapshots for a specific file volume at a given schedule
 
         :param integer volume_id: The id of the volume
         :param string schedule_type: 'HOURLY'|'DAILY'|'WEEKLY'
-        :param integer retention_count: The number of snapshots to attempt to
-        retain in this schedule
-        :param integer minute: The minute of the hour at which HOURLY, DAILY,
-        and WEEKLY snapshots should be taken
-        :param integer hour: The hour of the day at which DAILY and WEEKLY
-        snapshots should be taken
-        :param string|integer day_of_week: The day of the week on which WEEKLY
-        snapshots should be taken, either as a string ('SUNDAY') or integer
-        ('0' is Sunday)
+        :param integer retention_count: The number of snapshots to attempt to retain in this schedule
+        :param integer minute: The minute of the hour at which HOURLY, DAILY, and WEEKLY snapshots should be taken
+        :param integer hour: The hour of the day at which DAILY and WEEKLY snapshots should be taken
+        :param string|integer day_of_week: The day of the week on which WEEKLY snapshots should be taken,
+                              either as a string ('SUNDAY') or integer ('0' is Sunday)
         :return: Returns whether successfully scheduled or not
         """
 
@@ -364,11 +387,23 @@ class FileStorageManager(utils.IdentifierMixin, object):
         :return: Returns whether successfully disabled or not
         """
 
-        return self.client.call('Network_Storage', 'disableSnapshots',
-                                schedule_type, id=volume_id)
+        return self.client.call('Network_Storage', 'disableSnapshots', schedule_type, id=volume_id)
 
-    def order_snapshot_space(self, volume_id, capacity, tier,
-                             upgrade, **kwargs):
+    def list_volume_schedules(self, volume_id):
+        """Lists schedules for a given volume
+
+        :param integer volume_id: The id of the volume
+        :return: Returns list of schedules assigned to a given volume
+        """
+        volume_detail = self.client.call(
+            'Network_Storage',
+            'getObject',
+            id=volume_id,
+            mask='schedules[type,properties[type]]')
+
+        return utils.lookup(volume_detail, 'schedules')
+
+    def order_snapshot_space(self, volume_id, capacity, tier, upgrade, **kwargs):
         """Orders snapshot space for the given file volume.
 
         :param integer volume_id: The ID of the volume
@@ -377,63 +412,36 @@ class FileStorageManager(utils.IdentifierMixin, object):
         :param boolean upgrade: Flag to indicate if this order is an upgrade
         :return: Returns a SoftLayer_Container_Product_Order_Receipt
         """
-
-        package = storage_utils.get_package(self, 'storage_service_enterprise')
-        file_mask = 'serviceResource.datacenter[id],'\
-            'storageTierLevel,billingItem'
+        file_mask = 'id,billingItem[location,hourlyFlag],'\
+            'storageType[keyName],storageTierLevel,provisionedIops,'\
+            'staasVersion,hasEncryptionAtRest'
         file_volume = self.get_file_volume_details(volume_id,
                                                    mask=file_mask,
                                                    **kwargs)
 
-        storage_type = file_volume['billingItem']['categoryCode']
-        if storage_type != 'storage_service_enterprise':
-            raise exceptions.SoftLayerError(
-                "File volume storage_type must be Endurance")
+        order = storage_utils.prepare_snapshot_order_object(
+            self, file_volume, capacity, tier, upgrade)
 
-        if tier is None:
-            tier = storage_utils.find_endurance_tier_iops_per_gb(file_volume)
-        prices = [storage_utils.find_snapshot_space_price(
-            package, capacity, tier)]
+        return self.client.call('Product_Order', 'placeOrder', order)
 
-        if upgrade:
-            complex_type = 'SoftLayer_Container_Product_Order_'\
-                           'Network_Storage_Enterprise_SnapshotSpace_Upgrade'
-        else:
-            complex_type = 'SoftLayer_Container_Product_Order_'\
-                           'Network_Storage_Enterprise_SnapshotSpace'
-
-        snapshot_space_order = {
-            'complexType': complex_type,
-            'packageId': package['id'],
-            'prices': prices,
-            'quantity': 1,
-            'location': file_volume['serviceResource']['datacenter']['id'],
-            'volumeId': volume_id,
-        }
-
-        return self.client.call('Product_Order', 'placeOrder',
-                                snapshot_space_order)
-
-    def cancel_snapshot_space(self, volume_id,
-                              reason='No longer needed',
-                              immediate=False):
+    def cancel_snapshot_space(self, volume_id, reason='No longer needed', immediate=False):
         """Cancels snapshot space for a given volume.
 
         :param integer volume_id: The volume ID
         :param string reason: The reason for cancellation
-        :param boolean immediate: Cancel immediately or
-        on anniversary date
+        :param boolean immediate: Cancel immediately or on anniversary date
         """
 
         file_volume = self.get_file_volume_details(
             volume_id,
-            mask='mask[id,billingItem[activeChildren]]')
-        children_array = file_volume['billingItem']['activeChildren']
-        billing_item_id = None
+            mask='mask[id,billingItem[activeChildren,hourlyFlag]]')
 
         if 'activeChildren' not in file_volume['billingItem']:
             raise exceptions.SoftLayerError(
                 'No snapshot space found to cancel')
+
+        children_array = file_volume['billingItem']['activeChildren']
+        billing_item_id = None
 
         for child in children_array:
             if child['categoryCode'] == 'storage_snapshot_space':
@@ -443,6 +451,9 @@ class FileStorageManager(utils.IdentifierMixin, object):
         if not billing_item_id:
             raise exceptions.SoftLayerError(
                 'No snapshot space found to cancel')
+
+        if utils.lookup(file_volume, 'billingItem', 'hourlyFlag'):
+            immediate = True
 
         return self.client['Billing_Item'].cancelItem(
             immediate,
@@ -461,20 +472,20 @@ class FileStorageManager(utils.IdentifierMixin, object):
         return self.client.call('Network_Storage', 'restoreFromSnapshot',
                                 snapshot_id, id=volume_id)
 
-    def cancel_file_volume(self, volume_id,
-                           reason='No longer needed',
-                           immediate=False):
+    def cancel_file_volume(self, volume_id, reason='No longer needed', immediate=False):
         """Cancels the given file storage volume.
 
         :param integer volume_id: The volume ID
         :param string reason: The reason for cancellation
-        :param boolean immediate: Cancel immediately or
-        on anniversary date
+        :param boolean immediate: Cancel immediately or on anniversary date
         """
         file_volume = self.get_file_volume_details(
             volume_id,
-            mask='mask[id,billingItem[id]]')
+            mask='mask[id,billingItem[id,hourlyFlag]]')
         billing_item_id = file_volume['billingItem']['id']
+
+        if utils.lookup(file_volume, 'billingItem', 'hourlyFlag'):
+            immediate = True
 
         return self.client['Billing_Item'].cancelItem(
             immediate,

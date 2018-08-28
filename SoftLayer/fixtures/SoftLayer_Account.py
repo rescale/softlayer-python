@@ -84,7 +84,6 @@ getMonthlyVirtualGuests = [vs for vs in getVirtualGuests
 getHourlyVirtualGuests = [vs for vs in getVirtualGuests
                           if vs['hourlyBillingFlag']]
 
-
 getHardware = [{
     'id': 1000,
     'metricTrackingObject': {'id': 3},
@@ -267,7 +266,8 @@ getObject = {
             "statusId": 4,
             "accountId": 1234
         }
-    ]
+    ],
+    'accountId': 1234
 }
 
 getRwhoisData = {
@@ -488,7 +488,6 @@ getActiveQuotes = [{
     'quoteKey': '1234test4321',
 }]
 
-
 getOrders = [{
     'id': 1234,
     'resourceType': '1 x 2.0 GHz Core',
@@ -536,7 +535,7 @@ getIscsiNetworkStorage = [{
     'notes': """{'status': 'available'}""",
     'password': '',
     'serviceProviderId': 1,
-    'serviceResource': {'datacenter': {'id': 449500}},
+    'serviceResource': {'datacenter': {'name': 'dal05', 'id': 449500}},
     'serviceResourceBackendIpAddress': '10.1.2.3',
     'serviceResourceName': 'Storage Type 01 Aggregate staaspar0101_pc01',
     'username': 'username',
@@ -548,3 +547,31 @@ getVirtualDedicatedRacks = [{
     'name': 'my first pool',
     'metricTrackingObjectId': 10,
 }]
+
+getDedicatedHosts = [{
+    'datacenter': {
+        'name': 'dal05'
+    },
+    'memoryCapacity': 242,
+    'name': 'khnguyendh',
+    'diskCapacity': 1200,
+    'guestCount': 1,
+    'cpuCount': 56,
+    'id': 44701
+}]
+
+
+getUsers = [
+    {'displayName': 'ChristopherG',
+     'hardwareCount': 138,
+     'id': 11100,
+     'userStatus': {'name': 'Active'},
+     'username': 'SL1234',
+     'virtualGuestCount': 99},
+    {'displayName': 'PulseL',
+     'hardwareCount': 100,
+     'id': 11111,
+     'userStatus': {'name': 'Active'},
+     'username': 'sl1234-abob',
+     'virtualGuestCount': 99}
+]

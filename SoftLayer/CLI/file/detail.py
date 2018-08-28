@@ -16,7 +16,6 @@ def cli(env, volume_id):
     file_manager = SoftLayer.FileStorageManager(env.client)
     file_volume = file_manager.get_file_volume_details(volume_id)
     file_volume = utils.NestedDict(file_volume)
-    used_space = int(file_volume['bytesUsed'])
 
     table = formatting.KeyValueTable(['Name', 'Value'])
     table.align['Name'] = 'r'
@@ -28,6 +27,8 @@ def cli(env, volume_id):
     table.add_row(['Type', storage_type])
     table.add_row(['Capacity (GB)', "%iGB" % file_volume['capacityGb']])
 
+    used_space = int(file_volume['bytesUsed'])\
+        if file_volume['bytesUsed'] else 0
     if used_space < (1 << 10):
         table.add_row(['Used Space', "%dB" % used_space])
     elif used_space < (1 << 20):
@@ -37,8 +38,8 @@ def cli(env, volume_id):
     else:
         table.add_row(['Used Space', "%dGB" % (used_space / (1 << 30))])
 
-    if file_volume.get('iops'):
-        table.add_row(['IOPs', file_volume['iops']])
+    if file_volume.get('provisionedIops'):
+        table.add_row(['IOPs', int(file_volume['provisionedIops'])])
 
     if file_volume.get('storageTierLevel'):
         table.add_row([
@@ -77,12 +78,10 @@ def cli(env, volume_id):
 
     if file_volume['activeTransactions']:
         for trans in file_volume['activeTransactions']:
-            table.add_row([
-                'Ongoing Transactions',
-                trans['transactionStatus']['friendlyName']])
+            if 'transactionStatus' in trans and 'friendlyName' in trans['transactionStatus']:
+                table.add_row(['Ongoing Transaction', trans['transactionStatus']['friendlyName']])
 
-    table.add_row(['Replicant Count', "%u"
-                   % file_volume['replicationPartnerCount']])
+    table.add_row(['Replicant Count', "%u" % file_volume.get('replicationPartnerCount', 0)])
 
     if file_volume['replicationPartnerCount'] > 0:
         # This if/else temporarily handles a bug in which the SL API
@@ -101,17 +100,28 @@ def cli(env, volume_id):
                                                 replicant['id']])
             replicant_table.add_row([
                 'Volume Name',
-                replicant['username']])
+                utils.lookup(replicant, 'username')])
             replicant_table.add_row([
                 'Target IP',
-                replicant['serviceResourceBackendIpAddress']])
+                utils.lookup(replicant, 'serviceResourceBackendIpAddress')])
             replicant_table.add_row([
                 'Data Center',
-                replicant['serviceResource']['datacenter']['name']])
+                utils.lookup(replicant,
+                             'serviceResource', 'datacenter', 'name')])
             replicant_table.add_row([
                 'Schedule',
-                replicant['replicationSchedule']['type']['keyname']])
+                utils.lookup(replicant,
+                             'replicationSchedule', 'type', 'keyname')])
             replicant_list.append(replicant_table)
         table.add_row(['Replicant Volumes', replicant_list])
+
+    if file_volume.get('originalVolumeSize'):
+        original_volume_info = formatting.Table(['Property', 'Value'])
+        original_volume_info.add_row(['Original Volume Size', file_volume['originalVolumeSize']])
+        if file_volume.get('originalVolumeName'):
+            original_volume_info.add_row(['Original Volume Name', file_volume['originalVolumeName']])
+        if file_volume.get('originalSnapshotName'):
+            original_volume_info.add_row(['Original Snapshot Name', file_volume['originalSnapshotName']])
+        table.add_row(['Original Volume Properties', original_volume_info])
 
     env.fout(table)

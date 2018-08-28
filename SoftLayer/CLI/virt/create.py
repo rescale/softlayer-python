@@ -26,8 +26,6 @@ def _update_with_like_args(ctx, _, value):
     like_args = {
         'hostname': like_details['hostname'],
         'domain': like_details['domain'],
-        'cpu': like_details['maxCpu'],
-        'memory': '%smb' % like_details['maxMemory'],
         'hourly': like_details['hourlyBillingFlag'],
         'datacenter': like_details['datacenter']['name'],
         'network': like_details['networkComponents'][0]['maxSpeed'],
@@ -36,6 +34,15 @@ def _update_with_like_args(ctx, _, value):
         'dedicated': like_details['dedicatedAccountHostOnlyFlag'],
         'private': like_details['privateNetworkOnlyFlag'],
     }
+
+    like_args['flavor'] = utils.lookup(like_details,
+                                       'billingItem',
+                                       'orderItem',
+                                       'preset',
+                                       'keyName')
+    if not like_args['flavor']:
+        like_args['cpu'] = like_details['maxCpu']
+        like_args['memory'] = '%smb' % like_details['maxMemory']
 
     tag_refs = like_details.get('tagReferences', None)
     if tag_refs is not None and len(tag_refs) > 0:
@@ -68,23 +75,29 @@ def _parse_create_args(client, args):
     config_list = []
 
     for hostname in args['hostnames'].split(','):
-
         data = {
             "hourly": args['billing'] == 'hourly',
-            "cpus": args['cpu'],
             "domain": args['domain'],
             "hostname": hostname,
             "private": args['private'],
             "dedicated": args['dedicated'],
             "disks": args['disk'],
-            "local_disk": not args['san'],
+            "cpus": args.get('cpu', None),
+            "memory": args.get('memory', None),
+            "flavor": args.get('flavor', None),
+            "boot_mode": args.get('boot_mode', None)
         }
-    
-        data["memory"] = args['memory']
-    
+
+        # The primary disk is included in the flavor and the local_disk flag is not needed
+        # Setting it to None prevents errors from the flag not matching the flavor
+        if not args.get('san') and args.get('flavor'):
+            data['local_disk'] = None
+        else:
+            data['local_disk'] = not args['san']
+
         if args.get('os'):
             data['os_code'] = args['os']
-    
+
         if args.get('image'):
             if args.get('image').isdigit():
                 image_mgr = SoftLayer.ImageManager(client)
@@ -93,22 +106,22 @@ def _parse_create_args(client, args):
                 data['image_id'] = image_details['globalIdentifier']
             else:
                 data['image_id'] = args['image']
-    
+
         if args.get('datacenter'):
             data['datacenter'] = args['datacenter']
-    
+
         if args.get('network'):
             data['nic_speed'] = args.get('network')
-    
+
         if args.get('userdata'):
             data['userdata'] = args['userdata']
         elif args.get('userfile'):
             with open(args['userfile'], 'r') as userfile:
                 data['userdata'] = userfile.read()
-    
+
         if args.get('postinstall'):
             data['post_uri'] = args.get('postinstall')
-    
+
         # Get the SSH keys
         if args.get('key'):
             keys = []
@@ -117,21 +130,32 @@ def _parse_create_args(client, args):
                 key_id = helpers.resolve_id(resolver, key, 'SshKey')
                 keys.append(key_id)
             data['ssh_keys'] = keys
-    
+
         if args.get('vlan_public'):
             data['public_vlan'] = args['vlan_public']
-    
+
         if args.get('vlan_private'):
             data['private_vlan'] = args['vlan_private']
 
-        if args.get('subnet_private'):
-            data['private_subnet'] = args['subnet_private']
+        data['public_subnet'] = args.get('subnet_public', None)
+
+        data['private_subnet'] = args.get('subnet_private', None)
+
+        if args.get('public_security_group'):
+            pub_groups = args.get('public_security_group')
+            data['public_security_groups'] = [group for group in pub_groups]
+
+        if args.get('private_security_group'):
+            priv_groups = args.get('private_security_group')
+            data['private_security_groups'] = [group for group in priv_groups]
 
         if args.get('tag'):
             data['tags'] = ','.join(args['tag'])
 
-        config_list.append(data)
+        if args.get('host_id'):
+            data['host_id'] = args['host_id']
 
+        config_list.append(data)
     return config_list
 
 
@@ -145,15 +169,14 @@ def _parse_create_args(client, args):
               required=True,
               prompt=True)
 @click.option('--cpu', '-c',
-              help="Number of CPU cores",
-              type=click.INT,
-              required=True,
-              prompt=True)
+              help="Number of CPU cores (not available with flavors)",
+              type=click.INT)
 @click.option('--memory', '-m',
-              help="Memory in mebibytes",
-              type=virt.MEM_TYPE,
-              required=True,
-              prompt=True)
+              help="Memory in mebibytes (not available with flavors)",
+              type=virt.MEM_TYPE)
+@click.option('--flavor', '-f',
+              help="Public Virtual Server flavor key name",
+              type=click.STRING)
 @click.option('--datacenter', '-d',
               help="Datacenter shortname",
               required=True,
@@ -162,6 +185,9 @@ def _parse_create_args(client, args):
               help="OS install code. Tip: you can specify <OS>_LATEST")
 @click.option('--image',
               help="Image ID. See: 'slcli image list' for reference")
+@click.option('--boot-mode',
+              help="Specify the mode to boot the OS in. Supported modes are HVM and PV.",
+              type=click.STRING)
 @click.option('--billing',
               type=click.Choice(['hourly', 'monthly']),
               default='hourly',
@@ -169,7 +195,10 @@ def _parse_create_args(client, args):
               help="Billing rate")
 @click.option('--dedicated/--public',
               is_flag=True,
-              help="Create a dedicated Virtual Server (Private Node)")
+              help="Create a Dedicated Virtual Server")
+@click.option('--host-id',
+              type=click.INT,
+              help="Host Id to provision a Dedicated Host Virtual Server onto")
 @click.option('--san',
               is_flag=True,
               help="Use SAN storage instead of local disk.")
@@ -205,16 +234,26 @@ def _parse_create_args(client, args):
               type=click.Path(exists=True, readable=True, resolve_path=True))
 @click.option('--vlan-public',
               help="The ID of the public VLAN on which you want the virtual "
-              "server placed",
+                   "server placed",
               type=click.INT)
 @click.option('--vlan-private',
               help="The ID of the private VLAN on which you want the virtual "
                    "server placed",
               type=click.INT)
-@click.option('--subnet-private',
-              help="The ID of the private subnet on which you want the virtual "
-                   "server placed",
+@click.option('--subnet-public',
+              help="The ID of the public SUBNET on which you want the virtual server placed",
               type=click.INT)
+@click.option('--subnet-private',
+              help="The ID of the private SUBNET on which you want the virtual server placed",
+              type=click.INT)
+@helpers.multi_option('--public-security-group',
+                      '-S',
+                      help=('Security group ID to associate with '
+                            'the public interface'))
+@helpers.multi_option('--private-security-group',
+                      '-s',
+                      help=('Security group ID to associate with '
+                            'the private interface'))
 @click.option('--wait',
               type=click.INT,
               help="Wait until VS is finished provisioning for up to X "
@@ -309,6 +348,22 @@ def cli(env, **args):
 
 def _validate_args(env, args):
     """Raises an ArgumentError if the given arguments are not valid."""
+
+    if all([args['cpu'], args['flavor']]):
+        raise exceptions.ArgumentError(
+            '[-c | --cpu] not allowed with [-f | --flavor]')
+
+    if all([args['memory'], args['flavor']]):
+        raise exceptions.ArgumentError(
+            '[-m | --memory] not allowed with [-f | --flavor]')
+
+    if all([args['dedicated'], args['flavor']]):
+        raise exceptions.ArgumentError(
+            '[-d | --dedicated] not allowed with [-f | --flavor]')
+
+    if all([args['host_id'], args['flavor']]):
+        raise exceptions.ArgumentError(
+            '[-h | --host-id] not allowed with [-f | --flavor]')
 
     if all([args['userdata'], args['userfile']]):
         raise exceptions.ArgumentError(

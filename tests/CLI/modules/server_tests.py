@@ -9,6 +9,7 @@
 """
 
 import mock
+import sys
 
 from SoftLayer.CLI import exceptions
 from SoftLayer import testing
@@ -24,6 +25,75 @@ class ServerCLITests(testing.TestCase):
         output = json.loads(result.output)
         self.assert_no_fail(result)
         self.assertEqual(len(output), 10)
+
+    def test_server_credentials(self):
+        mock = self.set_mock('SoftLayer_Hardware_Server', 'getObject')
+        mock.return_value = {
+            "accountId": 11111,
+            "domain": "chechu.com",
+            "fullyQualifiedDomainName": "host3.vmware.chechu.com",
+            "hardwareStatusId": 5,
+            "hostname": "host3.vmware",
+            "id": 12345,
+            "softwareComponents": [{"passwords": [
+                {
+                    "password": "abc123",
+                    "username": "root"
+                }
+            ]}]
+        }
+        result = self.run_command(['hardware', 'credentials', '12345'])
+
+        self.assert_no_fail(result)
+        self.assertEqual(json.loads(result.output),
+                         [{
+                             'username': 'root',
+                             'password': 'abc123'
+                         }])
+
+    def test_server_credentials_exception_passwords_not_found(self):
+        mock = self.set_mock('SoftLayer_Hardware_Server', 'getObject')
+        mock.return_value = {
+            "accountId": 11111,
+            "domain": "chechu.com",
+            "fullyQualifiedDomainName": "host3.vmware.chechu.com",
+            "hardwareStatusId": 5,
+            "hostname": "host3.vmware",
+            "id": 12345,
+            "softwareComponents": [{}]
+        }
+
+        result = self.run_command(['hardware', 'credentials', '12345'])
+
+        self.assertEqual(
+            'No passwords found in softwareComponents',
+            str(result.exception)
+        )
+
+    def test_server_credentials_exception_password_not_found(self):
+        mock = self.set_mock('SoftLayer_Hardware_Server', 'getObject')
+        mock.return_value = {
+            "accountId": 11111,
+            "domain": "chechu.com",
+            "fullyQualifiedDomainName": "host3.vmware.chechu.com",
+            "hardwareStatusId": 5,
+            "hostname": "host3.vmware",
+            "id": 12345,
+            "softwareComponents": [
+                {
+                    "hardwareId": 22222,
+                    "id": 333333,
+                    "passwords": [{}]
+                }
+            ]
+        }
+
+        result = self.run_command(['hardware', 'credentials', '12345'])
+
+        self.assertEqual(
+            'None',
+            str(result.exception)
+        )
 
     def test_server_details(self):
         result = self.run_command(['server', 'detail', '1234',
@@ -43,9 +113,9 @@ class ServerCLITests(testing.TestCase):
             'os': 'Ubuntu',
             'os_version': 'Ubuntu 12.04 LTS',
             'owner': 'chechu',
-            'price_rate': 21.08,
+            'prices': [{'Item': 'Total', 'Recurring Price': 16.08},
+                       {'Item': 'test', 'Recurring Price': 1}],
             'private_ip': '10.1.0.2',
-            'ptr': '2.0.1.10.in-addr.arpa',
             'public_ip': '172.16.1.100',
             'remote users': [{'password': 'abc123', 'ipmi_username': 'root'}],
             'status': 'ACTIVE',
@@ -263,7 +333,9 @@ class ServerCLITests(testing.TestCase):
         expected = [
             [{'datacenter': 'Washington 1', 'value': 'wdc01'}],
             [{'size': 'Single Xeon 1270, 8GB Ram, 2x1TB SATA disks, Non-RAID',
-              'value': 'S1270_8GB_2X1TBSATA_NORAID'}],
+              'value': 'S1270_8GB_2X1TBSATA_NORAID'},
+             {'size': 'Dual Xeon Gold, 384GB Ram, 4x960GB SSD, RAID 10',
+              'value': 'DGOLD_6140_384GB_4X960GB_SSD_SED_RAID_10'}],
             [{'operating_system': 'Ubuntu / 14.04-64',
               'value': 'UBUNTU_14_64'}],
             [{'port_speed': '10 Mbps Public & Private Network Uplinks',
@@ -310,6 +382,8 @@ class ServerCLITests(testing.TestCase):
 
     @mock.patch('SoftLayer.CLI.template.export_to_template')
     def test_create_server_with_export(self, export_mock):
+        if (sys.platform.startswith("win")):
+            self.skipTest("Test doesn't work in Windows")
         result = self.run_command(['--really', 'server', 'create',
                                    '--size=S1270_8GB_2X1TBSATA_NORAID',
                                    '--hostname=test',
@@ -382,10 +456,11 @@ class ServerCLITests(testing.TestCase):
                                      hostname='hardware-test1')
 
     def test_edit_server_userfile(self):
+        if (sys.platform.startswith("win")):
+            self.skipTest("Test doesn't work in Windows")
         with tempfile.NamedTemporaryFile() as userfile:
             userfile.write(b"some data")
             userfile.flush()
-
             result = self.run_command(['server', 'edit', '1000',
                                        '--userfile=%s' % userfile.name])
 
@@ -441,3 +516,67 @@ class ServerCLITests(testing.TestCase):
             args=(100,),
             identifier=100,
         )
+
+    @mock.patch('SoftLayer.CLI.formatting.confirm')
+    def test_rescue(self, confirm_mock):
+        confirm_mock.return_value = True
+        result = self.run_command(['server', 'rescue', '1000'])
+
+        self.assert_no_fail(result)
+        self.assertEqual(result.output, "")
+        self.assert_called_with('SoftLayer_Hardware_Server', 'bootToRescueLayer', identifier=1000)
+
+    @mock.patch('SoftLayer.CLI.formatting.confirm')
+    def test_server_rescue_negative(self, confirm_mock):
+        confirm_mock.return_value = False
+        result = self.run_command(['server', 'rescue', '1000'])
+
+        self.assertEqual(result.exit_code, 2)
+        self.assertIsInstance(result.exception, exceptions.CLIAbort)
+
+    def test_ready(self):
+        mock = self.set_mock('SoftLayer_Hardware_Server', 'getObject')
+        mock.return_value = {
+            "provisionDate": "2017-10-17T11:21:53-07:00",
+            "id": 41957081
+        }
+        result = self.run_command(['hw', 'ready', '100'])
+        self.assert_no_fail(result)
+        self.assertEqual(result.output, '"READY"\n')
+
+    def test_not_ready(self):
+        mock = self.set_mock('SoftLayer_Hardware_Server', 'getObject')
+        not_ready = {
+            'activeTransaction': {
+                'transactionStatus': {'friendlyName': 'Attach Primary Disk'}
+            },
+            'provisionDate': '',
+            'id': 47392219
+        }
+        ready = {
+            "provisionDate": "2017-10-17T11:21:53-07:00",
+            "id": 41957081
+        }
+        mock.side_effect = [not_ready, ready]
+        result = self.run_command(['hw', 'ready', '100'])
+        self.assertEqual(result.exit_code, 2)
+        self.assertIsInstance(result.exception, exceptions.CLIAbort)
+
+    @mock.patch('time.sleep')
+    def test_going_ready(self, _sleep):
+        mock = self.set_mock('SoftLayer_Hardware_Server', 'getObject')
+        not_ready = {
+            'activeTransaction': {
+                'transactionStatus': {'friendlyName': 'Attach Primary Disk'}
+            },
+            'provisionDate': '',
+            'id': 47392219
+        }
+        ready = {
+            "provisionDate": "2017-10-17T11:21:53-07:00",
+            "id": 41957081
+        }
+        mock.side_effect = [not_ready, ready]
+        result = self.run_command(['hw', 'ready', '100', '--wait=100'])
+        self.assert_no_fail(result)
+        self.assertEqual(result.output, '"READY"\n')

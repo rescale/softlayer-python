@@ -155,16 +155,622 @@ HARDWARE_ITEMS = [
                  'setupFee': '0',
                  'sort': 99}]}]
 
+ENTERPRISE_PACKAGE = {
+    'categories': [
+        {'categoryCode': 'storage_service_enterprise'}
+    ],
+    'id': 240,
+    'name': 'Endurance',
+    'items': [
+        {
+            'capacity': '0',
+            'itemCategory': {'categoryCode': 'storage_service_enterprise'},
+            'keyName': 'CODENAME_PRIME_STORAGE_SERVICE',
+            'prices': [
+                {
+                    'categories': [
+                        {'categoryCode': 'storage_service_enterprise'}
+                    ],
+                    'id': 45058,
+                    'locationGroupId': ''
+                }
+            ]
+        }, {
+            'capacity': '0',
+            'itemCategory': {'categoryCode': 'storage_file'},
+            'keyName': 'FILE_STORAGE_2',
+            'prices': [
+                {
+                    'categories': [
+                        {'categoryCode': 'storage_file'}
+                    ],
+                    'id': 45108,
+                    'locationGroupId': ''
+                }
+            ]
+        }, {
+            'capacity': '0',
+            'itemCategory': {'categoryCode': 'storage_block'},
+            'keyName': 'BLOCK_STORAGE_2',
+            'prices': [
+                {
+                    'categories': [
+                        {'categoryCode': 'storage_block'}
+                    ],
+                    'id': 45098,
+                    'locationGroupId': ''
+                }
+            ]
+        }, {
+            'capacity': '10',
+            'itemCategory': {'categoryCode': 'performance_storage_space'},
+            'keyName': '10_GB_STORAGE_SPACE',
+            'prices': [
+                {
+                    'capacityRestrictionMaximum': '200',
+                    'capacityRestrictionMinimum': '200',
+                    'capacityRestrictionType': 'STORAGE_TIER_LEVEL',
+                    'categories': [
+                        {'categoryCode': 'storage_snapshot_space'}
+                    ],
+                    'id': 46160,
+                    'locationGroupId': ''
+                }, {
+                    'capacityRestrictionMaximum': '300',
+                    'capacityRestrictionMinimum': '300',
+                    'capacityRestrictionType': 'STORAGE_TIER_LEVEL',
+                    'categories': [
+                        {'categoryCode': 'storage_snapshot_space'}
+                    ],
+                    'id': 46170,
+                    'locationGroupId': ''
+                }
+            ]
+        }, {
+            'capacity': '20',
+            'itemCategory': {'categoryCode': 'performance_storage_space'},
+            'keyName': '20_GB_PERFORMANCE_STORAGE_SPACE',
+            'prices': [
+                {
+                    'capacityRestrictionMaximum': '200',
+                    'capacityRestrictionMinimum': '200',
+                    'capacityRestrictionType': 'STORAGE_TIER_LEVEL',
+                    'categories': [
+                        {'categoryCode': 'storage_snapshot_space'}
+                    ],
+                    'id': 45860,
+                    'locationGroupId': ''
+                }, {
+                    'capacityRestrictionMaximum': '200',
+                    'capacityRestrictionMinimum': '200',
+                    'capacityRestrictionType': 'STORAGE_TIER_LEVEL',
+                    'categories': [
+                        {'categoryCode': 'performance_storage_replication'}
+                    ],
+                    'id': 46659,
+                    'locationGroupId': ''
+                }, {
+                    'capacityRestrictionMaximum': '200',
+                    'capacityRestrictionMinimum': '200',
+                    'capacityRestrictionType': 'STORAGE_TIER_LEVEL',
+                    'categories': [
+                        {'categoryCode': 'performance_storage_space'}
+                    ],
+                    'id': 45128,
+                    'locationGroupId': ''
+                }
+            ]
+        }, {
+            'capacity': '1000',
+            'itemCategory': {'categoryCode': 'performance_storage_space'},
+            'keyName': '1000_GB_PERFORMANCE_STORAGE_SPACE',
+            'prices': [
+                {
+                    'capacityRestrictionMaximum': '300',
+                    'capacityRestrictionMinimum': '300',
+                    'capacityRestrictionType': 'STORAGE_TIER_LEVEL',
+                    'categories': [
+                        {'categoryCode': 'performance_storage_replication'}
+                    ],
+                    'id': 46789,
+                    'locationGroupId': ''
+                }, {
+                    'capacityRestrictionMaximum': '300',
+                    'capacityRestrictionMinimum': '300',
+                    'capacityRestrictionType': 'STORAGE_TIER_LEVEL',
+                    'categories': [
+                        {'categoryCode': 'performance_storage_space'}
+                    ],
+                    'id': 45318,
+                    'locationGroupId': ''
+                }
+            ]
+        }, {
+            'attributes': [
+                {'value': '300'}
+            ],
+            'capacity': '300',
+            'itemCategory': {'categoryCode': 'storage_tier_level'},
+            'keyName': 'WRITEHEAVY_TIER',
+            'prices': [
+                {
+                    'categories': [
+                        {'categoryCode': 'storage_tier_level'}
+                    ],
+                    'id': 45088,
+                    'locationGroupId': ''
+                }
+            ]
+        }, {
+            'attributes': [
+                {'value': '200'}
+            ],
+            'capacity': '200',
+            'itemCategory': {'categoryCode': 'storage_tier_level'},
+            'keyName': 'READHEAVY_TIER',
+            'prices': [
+                {
+                    'categories': [
+                        {'categoryCode': 'storage_tier_level'}
+                    ],
+                    'id': 45078,
+                    'locationGroupId': ''
+                }
+            ]
+        }
+    ]
+}
+
+PERFORMANCE_PACKAGE = {
+    'categories': [
+        {'categoryCode': 'performance_storage_iscsi'},
+        {'categoryCode': 'performance_storage_nfs'}
+    ],
+    'id': 222,
+    'name': 'Performance',
+    'items': [
+        {
+            'capacity': '0',
+            'itemCategory': {'categoryCode': 'performance_storage_iscsi'},
+            'keyName': 'BLOCK_STORAGE_PERFORMANCE_ISCSI',
+            'prices': [
+                {
+                    'categories': [
+                        {'categoryCode': 'performance_storage_iscsi'}
+                    ],
+                    'id': 40672,
+                    'locationGroupId': ''
+                }
+            ]
+        }, {
+            'capacity': '0',
+            'itemCategory': {'categoryCode': 'performance_storage_nfs'},
+            'keyName': 'FILE_STORAGE_PERFORMANCE_NFS',
+            'prices': [
+                {
+                    'categories': [
+                        {'categoryCode': 'performance_storage_nfs'}
+                    ],
+                    'id': 40662,
+                    'locationGroupId': ''
+                }
+            ]
+        }, {
+            'capacity': '20',
+            'itemCategory': {'categoryCode': 'performance_storage_space'},
+            'keyName': '20_GB_PERFORMANCE_STORAGE_SPACE',
+            'prices': [
+                {
+                    'categories': [
+                        {'categoryCode': 'performance_storage_space'}
+                    ],
+                    'id': 40682,
+                    'locationGroupId': ''
+                }
+            ]
+        }, {
+            'capacity': '1000',
+            'itemCategory': {'categoryCode': 'performance_storage_space'},
+            'keyName': '1000_GB_PERFORMANCE_STORAGE_SPACE',
+            'prices': [
+                {
+                    'categories': [
+                        {'categoryCode': 'performance_storage_space'}
+                    ],
+                    'id': 40742,
+                    'locationGroupId': ''
+                }
+            ]
+        }, {
+            'capacity': '800',
+            'itemCategory': {'categoryCode': 'performance_storage_iops'},
+            'keyName': '800_IOPS_4',
+            'prices': [
+                {
+                    'capacityRestrictionMaximum': '1000',
+                    'capacityRestrictionMinimum': '100',
+                    'capacityRestrictionType': 'STORAGE_SPACE',
+                    'categories': [
+                        {'categoryCode': 'performance_storage_iops'}
+                    ],
+                    'id': 41562,
+                    'locationGroupId': ''
+                }
+            ]
+        }, {
+            'capacity': '1000',
+            'itemCategory': {'categoryCode': 'performance_storage_iops'},
+            'keyName': '1000_IOPS',
+            'prices': [
+                {
+                    'capacityRestrictionMaximum': '20',
+                    'capacityRestrictionMinimum': '20',
+                    'capacityRestrictionType': 'STORAGE_SPACE',
+                    'categories': [
+                        {'categoryCode': 'performance_storage_iops'}
+                    ],
+                    'id': 40882,
+                    'locationGroupId': ''
+                }
+            ]
+        }
+    ]
+}
+
+SAAS_PACKAGE = {
+    'categories': [
+        {'categoryCode': 'storage_as_a_service'}
+    ],
+    'id': 759,
+    'name': 'Storage As A Service (StaaS)',
+    'items': [
+        {
+            'capacity': '0',
+            'keyName': '',
+            'prices': [
+                {
+                    'id': 189433,
+                    'categories': [
+                        {'categoryCode': 'storage_as_a_service'}
+                    ],
+                    'locationGroupId': ''
+                }
+            ]
+        }, {
+            'capacity': '0',
+            'keyName': '',
+            'prices': [
+                {
+                    'categories': [
+                        {'categoryCode': 'storage_block'}
+                    ],
+                    'id': 189443,
+                    'locationGroupId': ''
+                }
+            ]
+        }, {
+            'capacity': '0',
+            'keyName': '',
+            'prices': [
+                {
+                    'categories': [
+                        {'categoryCode': 'storage_file'}
+                    ],
+                    'id': 189453,
+                    'locationGroupId': ''
+                }
+            ]
+        }, {
+            'capacity': '0',
+            'capacityMaximum': '999',
+            'capacityMinimum': '500',
+            'itemCategory': {'categoryCode': 'performance_storage_space'},
+            'keyName': '500_999_GBS',
+            'prices': [
+                {
+                    'id': 189993,
+                    'categories': [
+                        {'categoryCode': 'performance_storage_space'}
+                    ],
+                    'locationGroupId': ''
+                }
+            ]
+        }, {
+            'capacity': '0',
+            'capacityMaximum': '1999',
+            'capacityMinimum': '1000',
+            'itemCategory': {'categoryCode': 'performance_storage_space'},
+            'keyName': '1000_1999_GBS',
+            'prices': [
+                {
+                    'id': 190113,
+                    'categories': [
+                        {'categoryCode': 'performance_storage_space'}
+                    ],
+                    'locationGroupId': ''
+                }
+            ]
+        }, {
+            'capacity': '0',
+            'capacityMaximum': '12000',
+            'capacityMinimum': '1',
+            'keyName': 'STORAGE_SPACE_FOR_2_IOPS_PER_GB',
+            'prices': [
+                {
+                    'id': 193433,
+                    'categories': [
+                        {'categoryCode': 'performance_storage_space'}
+                    ],
+                    'locationGroupId': ''
+                }
+            ]
+        }, {
+            'capacity': '0',
+            'capacityMaximum': '12000',
+            'capacityMinimum': '1',
+            'keyName': 'STORAGE_SPACE_FOR_4_IOPS_PER_GB',
+            'prices': [
+                {
+                    'id': 194763,
+                    'categories': [
+                        {'categoryCode': 'performance_storage_space'}
+                    ],
+                    'locationGroupId': ''
+                }
+            ]
+        }, {
+            'capacity': '0',
+            'capacityMaximum': '10000',
+            'capacityMinimum': '100',
+            'keyName': '',
+            'itemCategory': {'categoryCode': 'performance_storage_iops'},
+            'prices': [
+                {
+                    'capacityRestrictionMaximum': '999',
+                    'capacityRestrictionMinimum': '500',
+                    'capacityRestrictionType': 'STORAGE_SPACE',
+                    'categories': [
+                        {'categoryCode': 'performance_storage_iops'}
+                    ],
+                    'id': 190053,
+                    'locationGroupId': ''
+                }
+            ]
+        }, {
+            'capacity': '0',
+            'capacityMaximum': '20000',
+            'capacityMinimum': '100',
+            'keyName': '',
+            'itemCategory': {'categoryCode': 'performance_storage_iops'},
+            'prices': [
+                {
+                    'capacityRestrictionMaximum': '1999',
+                    'capacityRestrictionMinimum': '1000',
+                    'capacityRestrictionType': 'STORAGE_SPACE',
+                    'categories': [
+                        {'categoryCode': 'performance_storage_iops'}
+                    ],
+                    'id': 190173,
+                    'locationGroupId': ''
+                }
+            ]
+        }, {
+            'capacity': '200',
+            'itemCategory': {'categoryCode': 'storage_tier_level'},
+            'keyName': '',
+            'prices': [
+                {
+                    'id': 193373,
+                    'categories': [
+                        {'categoryCode': 'storage_tier_level'}
+                    ],
+                    'locationGroupId': ''
+                }
+            ]
+        }, {
+            'capacity': '300',
+            'itemCategory': {'categoryCode': 'storage_tier_level'},
+            'keyName': '',
+            'prices': [
+                {
+                    'id': 194703,
+                    'categories': [
+                        {'categoryCode': 'storage_tier_level'}
+                    ],
+                    'locationGroupId': ''
+                }
+            ]
+        }, {
+            'capacity': '10',
+            'keyName': '',
+            'prices': [
+                {
+                    'capacityRestrictionMaximum': '48000',
+                    'capacityRestrictionMinimum': '100',
+                    'capacityRestrictionType': 'IOPS',
+                    'categories': [
+                        {'categoryCode': 'storage_snapshot_space'}
+                    ],
+                    'id': 191193,
+                    'locationGroupId': ''
+                }, {
+                    'capacityRestrictionMaximum': '200',
+                    'capacityRestrictionMinimum': '200',
+                    'capacityRestrictionType': 'STORAGE_TIER_LEVEL',
+                    'categories': [
+                        {'categoryCode': 'storage_snapshot_space'}
+                    ],
+                    'id': 193613,
+                    'locationGroupId': ''
+                }, {
+                    'capacityRestrictionMaximum': '300',
+                    'capacityRestrictionMinimum': '300',
+                    'capacityRestrictionType': 'STORAGE_TIER_LEVEL',
+                    'categories': [
+                        {'categoryCode': 'storage_snapshot_space'}
+                    ],
+                    'id': 194943,
+                    'locationGroupId': ''}]
+        }, {
+            'capacity': '20',
+            'keyName': '',
+            'prices': [
+                {
+                    'capacityRestrictionMaximum': '200',
+                    'capacityRestrictionMinimum': '200',
+                    'capacityRestrictionType': 'STORAGE_TIER_LEVEL',
+                    'categories': [
+                        {'categoryCode': 'storage_snapshot_space'}
+                    ],
+                    'id': 193853,
+                    'locationGroupId': ''
+                }
+            ]
+        }, {
+            'capacity': '0',
+            'itemCategory': {
+                'categoryCode': 'performance_storage_replication'
+            },
+            'keyName': 'REPLICATION_FOR_IOPSBASED_PERFORMANCE',
+            'prices': [
+                {
+                    'capacityRestrictionMaximum': '48000',
+                    'capacityRestrictionMinimum': '1',
+                    'capacityRestrictionType': 'IOPS',
+                    'categories': [
+                        {'categoryCode': 'performance_storage_replication'}
+                    ],
+                    'id': 192033,
+                    'locationGroupId': ''
+                }
+            ]
+        }, {
+            'capacity': '0',
+            'itemCategory': {
+                'categoryCode': 'performance_storage_replication'
+            },
+            'keyName': 'REPLICATION_FOR_TIERBASED_PERFORMANCE',
+            'prices': [
+                {
+                    'capacityRestrictionMaximum': '200',
+                    'capacityRestrictionMinimum': '200',
+                    'capacityRestrictionType': 'STORAGE_TIER_LEVEL',
+                    'categories': [
+                        {'categoryCode': 'performance_storage_replication'}
+                    ],
+                    'id': 194693,
+                    'locationGroupId': ''
+                }
+            ]
+        }
+    ]
+}
+
+
+SAAS_REST_PACKAGE = {
+    'categories': [
+        {'categoryCode': 'storage_as_a_service'}
+    ],
+    'id': 759,
+    'name': 'Storage As A Service (StaaS)',
+    'items': [
+        {
+            'capacity': '0',
+            'keyName': '',
+            'prices': [
+                {
+                    'id': 189433,
+                    'categories': [
+                        {'categoryCode': 'storage_as_a_service'}
+                    ],
+                    'locationGroupId': None
+                }
+            ]
+        }, {
+            'capacity': '20',
+            'keyName': '',
+            'prices': [
+                {
+                    'capacityRestrictionMaximum': '200',
+                    'capacityRestrictionMinimum': '200',
+                    'capacityRestrictionType': 'STORAGE_TIER_LEVEL',
+                    'categories': [
+                        {'categoryCode': 'storage_snapshot_space'}
+                    ],
+                    'id': 193853,
+                    'locationGroupId': None
+                }
+            ]
+        }, {
+            'capacity': '0',
+            'capacityMaximum': '1999',
+            'capacityMinimum': '1000',
+            'itemCategory': {'categoryCode': 'performance_storage_space'},
+            'keyName': '1000_1999_GBS',
+            'prices': [
+                {
+                    'id': 190113,
+                    'categories': [
+                        {'categoryCode': 'performance_storage_space'}
+                    ],
+                    'locationGroupId': None
+                }
+            ]
+        }, {
+            'capacity': '0',
+            'capacityMaximum': '20000',
+            'capacityMinimum': '100',
+            'keyName': '',
+            'itemCategory': {'categoryCode': 'performance_storage_iops'},
+            'prices': [
+                {
+                    'capacityRestrictionMaximum': '1999',
+                    'capacityRestrictionMinimum': '1000',
+                    'capacityRestrictionType': 'STORAGE_SPACE',
+                    'categories': [
+                        {'categoryCode': 'performance_storage_iops'}
+                    ],
+                    'id': 190173,
+                    'locationGroupId': None
+                }
+            ]
+        }, {
+            'capacity': '0',
+            'keyName': '',
+            'prices': [
+                {
+                    'categories': [
+                        {'categoryCode': 'storage_file'}
+                    ],
+                    'id': 189453,
+                    'locationGroupId': None
+                }
+            ]
+        }
+    ]
+}
+
+activePreset1 = {
+    'description': 'Single Xeon 1270, 8GB Ram, 2x1TB SATA disks, Non-RAID',
+    'id': 64,
+    'isActive': '1',
+    'keyName': 'S1270_8GB_2X1TBSATA_NORAID',
+    'name': 'S1270 8GB 2X1TBSATA NORAID',
+    'packageId': 200
+}
+
+activePreset2 = {
+    'description': 'Dual Xeon Gold, 384GB Ram, 4x960GB SSD, RAID 10',
+    'id': 65,
+    'isActive': '1',
+    'keyName': 'DGOLD_6140_384GB_4X960GB_SSD_SED_RAID_10',
+    'name': 'DGOLD 6140 384GB 4X960GB SSD SED RAID 10',
+    'packageId': 200
+}
 
 getAllObjects = [{
-    'activePresets': [{
-        'description': 'Single Xeon 1270, 8GB Ram, 2x1TB SATA disks, Non-RAID',
-        'id': 64,
-        'isActive': '1',
-        'keyName': 'S1270_8GB_2X1TBSATA_NORAID',
-        'name': 'S1270 8GB 2X1TBSATA NORAID',
-        'packageId': 200
-    }],
+    'activePresets': [activePreset1],
+    'accountRestrictedActivePresets': [activePreset2],
     'description': 'Bare Metal Server',
     'firstOrderStepId': 1,
     'id': 200,
@@ -215,7 +821,8 @@ getItems = [
     {
         'id': 1240,
         'capacity': '4',
-        'description': 'Private Computing Instance',
+        'units': 'PRIVATE_CORE',
+        'description': 'Computing Instance (Dedicated)',
         'itemCategory': {'categoryCode': 'Computing Instance'},
         'prices': [{'id': 1007,
                     'categories': [{'id': 80,
@@ -225,6 +832,7 @@ getItems = [
     {
         'id': 1250,
         'capacity': '4',
+        'units': 'CORE',
         'description': 'Computing Instance',
         'itemCategory': {'categoryCode': 'Computing Instance'},
         'prices': [{'id': 1144,
@@ -236,6 +844,7 @@ getItems = [
     {
         'id': 112233,
         'capacity': '55',
+        'units': 'CORE',
         'description': 'Computing Instance',
         'itemCategory': {'categoryCode': 'Computing Instance'},
         'prices': [{'id': 332211,
@@ -308,7 +917,6 @@ getItems = [
         'prices': [{'id': 611}],
     }]
 
-
 getItemPrices = [
     {
         'currentPriceFlag': '',
@@ -375,3 +983,255 @@ getItemPrices = [
         'setupFee': '0',
         'sort': 0
     }]
+
+verifyOrderDH = {
+    'preTaxSetup': '0',
+    'storageGroups': [],
+    'postTaxRecurring': '3.164',
+    'billingOrderItemId': '',
+    'presetId': '',
+    'hardware': [
+        {
+            'domain': 't.com',
+            'hostname': 't',
+            'bareMetalInstanceFlag': '',
+            'hardwareStatusId': '',
+            'primaryBackendNetworkComponent': {
+                'router': {
+                    'id': 51218
+                },
+                'networkVlanId': ''
+            },
+            'accountId': ''
+        }
+    ],
+    'prices': [
+        {
+            'itemId': 10195,
+            'setupFee': '0',
+            'recurringFee': '0',
+            'hourlyRecurringFee': '3.164',
+            'oneTimeFee': '0',
+            'id': 200269,
+            'item': {
+                'thirdPartyPolicyAssignments': [],
+                'capacity': '56',
+                'description': '56 Cores X 242 RAM X 1.2 TB',
+                'bundle': [
+                    {
+                        'category': {
+                            'categoryCode': 'dedicated_host_ram',
+                            'id': 850,
+                            'name': 'Dedicated Host RAM'
+                        },
+                        'itemPriceId': 200301,
+                        'itemPrice': {
+                            'itemId': 10199,
+                            'setupFee': '0',
+                            'recurringFee': '0',
+                            'hourlyRecurringFee': '0',
+                            'oneTimeFee': '0',
+                            'id': 200301,
+                            'laborFee': '0'
+                        },
+                        'bundleItemId': 10195,
+                        'bundleItem': {
+                            'units': 'CORE',
+                            'keyName': '56_CORES_X_242_RAM_X_1_4_TB',
+                            'capacity': '56',
+                            'description': '56 Cores X 242 RAM X 1.2 TB',
+                            'id': 10195
+                        },
+                        'id': 41763
+                    },
+                    {
+                        'category': {
+                            'categoryCode': 'dedicated_host_disk',
+                            'id': 851,
+                            'name': 'Dedicated Host Disk'
+                        },
+                        'itemPriceId': 200299,
+                        'itemPrice': {
+                            'itemId': 10197,
+                            'setupFee': '0',
+                            'recurringFee': '0',
+                            'hourlyRecurringFee': '0',
+                            'oneTimeFee': '0',
+                            'id': 200299,
+                            'laborFee': '0'
+                        },
+                        'bundleItemId': 10195,
+                        'bundleItem': {
+                            'units': 'CORE',
+                            'keyName': '56_CORES_X_242_RAM_X_1_4_TB',
+                            'capacity': '56',
+                            'description': '56 Cores X 242 RAM X 1.2 TB',
+                            'id': 10195
+                        },
+                        'id': 41761
+                    }
+                ],
+                'keyName': '56_CORES_X_242_RAM_X_1_4_TB',
+                'units': 'CORE',
+                'id': 10195
+            },
+            'laborFee': '0',
+            'categories': [
+                {
+                    'categoryCode': 'dedicated_virtual_hosts',
+                    'id': 848,
+                    'name': 'Dedicated Host'
+                }
+            ]
+        }
+    ],
+    'sendQuoteEmailFlag': '',
+    'packageId': 813,
+    'useHourlyPricing': True,
+    'preTaxRecurringMonthly': '0',
+    'message': '',
+    'preTaxRecurring': '3.164',
+    'primaryDiskPartitionId': '',
+    'locationObject': {
+        'id': 138124,
+        'name': 'dal05',
+        'longName': 'Dallas 5'
+    },
+    'taxCompletedFlag': False,
+    'isManagedOrder': '',
+    'imageTemplateId': '',
+    'postTaxRecurringMonthly': '0',
+    'resourceGroupTemplateId': '',
+    'postTaxSetup': '0',
+    'sshKeys': [],
+    'location': '138124',
+    'stepId': '',
+    'proratedInitialCharge': '0',
+    'totalRecurringTax': '0',
+    'paymentType': '',
+    'resourceGroupId': '',
+    'sourceVirtualGuestId': '',
+    'bigDataOrderFlag': False,
+    'extendedHardwareTesting': '',
+    'preTaxRecurringHourly': '3.164',
+    'postTaxRecurringHourly': '3.164',
+    'currencyShortName': 'USD',
+    'containerSplHash': '000000003699c54000007f38ef8b0102',
+    'proratedOrderTotal': '0',
+    'serverCoreCount': '',
+    'privateCloudOrderFlag': False,
+    'totalSetupTax': '0',
+    'quantity': 1
+}
+
+getAllObjectsDH = [{
+    "subDescription": "Dedicated Host",
+    "name": "Dedicated Host",
+    "items": [{
+        "capacity": "56",
+        "description": "56 Cores X 242 RAM X 1.2 TB",
+        "bundleItems": [
+            {
+                "capacity": "1200",
+                "categories": [{
+                    "categoryCode": "dedicated_host_disk"
+                }]
+            },
+            {
+                "capacity": "242",
+                "categories": [{
+                    "categoryCode": "dedicated_host_ram"
+                }]
+            }
+        ],
+        "prices": [
+            {
+                "itemId": 10195,
+                "setupFee": "0",
+                "recurringFee": "2099",
+                "tierMinimumThreshold": "",
+                "hourlyRecurringFee": "3.164",
+                "oneTimeFee": "0",
+                "currentPriceFlag": "",
+                "id": 200269,
+                "sort": 0,
+                "onSaleFlag": "",
+                "laborFee": "0",
+                "locationGroupId": "",
+                "quantity": ""
+            },
+            {
+                "itemId": 10195,
+                "setupFee": "0",
+                "recurringFee": "2161.97",
+                "tierMinimumThreshold": "",
+                "hourlyRecurringFee": "3.258",
+                "oneTimeFee": "0",
+                "currentPriceFlag": "",
+                "id": 200271,
+                "sort": 0,
+                "onSaleFlag": "",
+                "laborFee": "0",
+                "locationGroupId": 503,
+                "quantity": ""
+            }
+        ],
+        "keyName": "56_CORES_X_242_RAM_X_1_4_TB",
+        "id": 10195,
+        "itemCategory": {
+            "categoryCode": "dedicated_virtual_hosts"
+        }
+    }],
+    "keyName": "DEDICATED_HOST",
+    "unitSize": "",
+    "regions": [{
+        "location": {
+            "locationPackageDetails": [{
+                "isAvailable": 1,
+                "locationId": 138124,
+                "packageId": 813
+            }],
+            "location": {
+                "statusId": 2,
+                "priceGroups": [{
+                    "locationGroupTypeId": 82,
+                    "description": "CDN - North America - Akamai",
+                    "locationGroupType": {
+                        "name": "PRICING"
+                    },
+                    "securityLevelId": "",
+                    "id": 1463,
+                    "name": "NORTH-AMERICA-AKAMAI"
+                }],
+                "id": 138124,
+                "name": "dal05",
+                "longName": "Dallas 5"
+            }
+        },
+        "keyname": "DALLAS05",
+        "description": "DAL05 - Dallas",
+        "sortOrder": 12
+    }],
+    "firstOrderStepId": "",
+    "id": 813,
+    "isActive": 1,
+    "description": "Dedicated Host"
+}]
+
+getRegions = [{
+    "description": "WDC07 - Washington, DC",
+    "keyname": "WASHINGTON07",
+    "locations": [{
+        "location": {
+            "euCompliantFlag": False,
+            "id": 2017603,
+            "longName": "Washington 7",
+            "name": "wdc07",
+            "statusId": 2},
+        "locationPackageDetails": [{
+            "isAvailable": 1,
+            "locationId": 2017603,
+            "packageId": 46
+        }]
+    }]
+}]

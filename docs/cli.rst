@@ -12,7 +12,10 @@ functionality not fully documented here.
 .. toctree::
    :maxdepth: 2
 
+   cli/ipsec
    cli/vs
+   cli/ordering
+   cli/users
 
 
 .. _config_setup:

@@ -1,5 +1,205 @@
 # Change Log
 
+## [5.5.1] - 2018-08-06
+- Changes: https://github.com/softlayer/softlayer-python/compare/v5.5.0...master
+
+- #1006, added paginations to several slcli methods, making them work better with large result sets. 
+- #995, Fixed an issue displaying VLANs.
+- #1011, Fixed an issue displaying some NAS passwords
+- #1014, Ability to delete users
+
+## [5.5.0] - 2018-07-09
+- Changes: https://github.com/softlayer/softlayer-python/compare/v5.4.4...v5.5.0
+
+- Added a warning when ordering legacy storage volumes
+- Added documentation link to volume-order
+- Increased slcli output width limit to 999 characters
+- More unit tests
+- Fixed an issue canceling some block storage volumes
+- Fixed `slcli order` to work with network gateways
+- Fixed an issue showing hardware credentials when they do not exist
+- Fixed an issue showing addressSpace when listing virtual servers
+- Updated ordering class to support baremetal servers with multiple GPU
+- Updated prompt-toolkit as a fix for `slcli shell`
+- Fixed `slcli vlan detail` to not fail when objects don't have a hostname
+- Added user management
+
+
+## [5.4.4] - 2018-04-18
+- Changes: https://github.com/softlayer/softlayer-python/compare/v5.4.3...v5.4.4
+
+- fixed hw list not showing transactions
+- Re-factored RestTransport and XMLRPCTransport, logging is now only done in the DebugTransport
+- Added print_reproduceable to XMLRPCTransport and RestTransport, which should be very useful in printing out pure API calls.
+- Fixed an issue with RestTransport and locationGroupId
+
+
+## [5.4.3] - 2018-03-30
+ - Changes: https://github.com/softlayer/softlayer-python/compare/v5.4.2...v5.4.3
+
+- Corrected to current create-options output
+- Allow ordering of account restricted presets
+- Added lookup function for datacenter names and ability to use `slcli order` with short DC names
+- Changed locatoinGroupId to check for None instead of empty string
+- Added a way to try to cancel montly bare metal immediately. THis is done by automatically updating the cancellation request. A human still needs to read the ticket and process it for the reclaim to complete.
+
+## [5.4.2] - 2018-02-22
+ - Changes: https://github.com/softlayer/softlayer-python/compare/v5.4.1...v5.4.2
+
+- add GPU to the virtual create-options table
+- Remove 'virtual' from the hardware ready command.
+- Carefully check for the metric tracking id on virtual guests when building a bandwidth report.
+- Do not fail if the source or destination subnet mask does not exist for ipv6 rules.
+
+## [5.4.1] - 2018-02-05
+ - Changes: https://github.com/softlayer/softlayer-python/compare/v5.4.0...v5.4.1
+
+- Improve error conditions when adding SSH keys
+- added type filters to package-list, auto-removes bluemix_services on package listing
+- Add boot mode option to virtual guest creation
+- Update documentation for security group rule add
+- Add fix for unsetting of values in edit SG rules
+
+## [5.4.0] - 2018-01-15
+ - Changes: https://github.com/softlayer/softlayer-python/compare/v5.3.2...v5.4.0
+
+ - Upgraded Requests and Urllib3 library to latest. This allows the library to make use of connection retries, and connection pools. This should prevent the client from crashing if the API gives a connection reset / connection timeout error
+ - reworked wait_for_ready function for virtual, and added to hardware managers. 
+ - fixed block/file iops in the `slcli block|file detail` view
+ - Added sub items to `hw detail --price`, removed reverse PTR entries
+
+### Added to CLI
+- slcli order
+```
+$ ./slcli order
+Usage: slcli order [OPTIONS] COMMAND [ARGS]...
+
+Options:
+  -h, --help  Show this message and exit.
+
+Commands:
+  category-list      List the categories of a package.
+  item-list          List package items used for ordering.
+  package-list       List packages that can be ordered via the...
+  package-locations  List Datacenters a package can be ordered in.
+  place              Place or verify an order.
+  preset-list        List package presets.
+```
+
+
+## [5.3.2] - 2017-12-18
+ - Changes: https://github.com/softlayer/softlayer-python/compare/v5.3.1...v5.3.2
+
+ - Expanded `@retry` useage to a few areas in the hardware manager
+ - Added INTERVAL options to block and file replication
+ - Fixed pricing error on `hw detail --price`
+ - Added sub items to `hw detail --price`, removed reverse PTR entries
+
+### Added to CLI
+- slcli dedicatedhost 
+
+
+## [5.3.1] - 2017-12-07
+ - Changes: https://github.com/softlayer/softlayer-python/compare/v5.3.0...v5.3.1
+ - Added support for storage volume modifications
+
+### Added to CLI
+- slcli block volume-modify
+- slcli file volume-modify
+
+## [5.3.0] - 2017-12-01
+ - Changes: https://github.com/softlayer/softlayer-python/compare/v5.2.15...v5.3.0
+ - Added a retry decorator. currently only used in setTags for VSI creation, which should allos VSI creation to be a bit more robust.
+ - Updated unit tests to work with pytest3.3
+
+## [5.2.15] - 2017-10-30
+ - Changes: https://github.com/softlayer/softlayer-python/compare/v5.2.14...v5.2.15
+ - Added dedicated host info to virt detail
+ - #885 - Fixed createObjects on the rest api endpoint
+ - changed securityGroups to use createObject instead of createObjects
+ - Always set the endpoint_url by defaulting to the public URL if the endpoint type cannot be determined.
+ - resource metadata update
+
+## [5.2.14] - 2017-09-13
+ - Changes: https://github.com/softlayer/softlayer-python/compare/v5.2.13...v5.2.14
+ - Improved slcli vs create-options output
+ - Updated slcli vs create to support new virtual server public and dedicated host offerings
+
+## [5.2.13] - 2017-09-05
+ - Changes: https://github.com/softlayer/softlayer-python/compare/v5.2.12...v5.2.13
+ - Support for hourly billing of storage
+ - Added exception handling for Managers.VSManager.wait_for_ready()
+ - Added windows support for unit testing
+ - Updated pypy version
+ 
+## [5.2.12] - 2017-08-09
+ - Changes: https://github.com/softlayer/softlayer-python/compare/v5.2.11...v5.2.12
+ - Support for storage_as_a_service block and file storage
+ 
+#### Added to CLI
+ - block volume-count
+ - file volume-count
+ - securitygroups
+   - create            Create a security group.
+   - delete            Deletes the given security group
+   - detail            Get details about a security group.
+   - edit              Edit details of a security group.
+   - interface-add     Attach an interface to a security group.
+   - interface-list    List interfaces associated with security...
+   - interface-remove  Detach an interface from a security group.
+   - list              List security groups.
+   - rule-add          Add a security group rule to a security...
+   - rule-edit         Edit a security group rule in a security...
+   - rule-list         List security group rules.
+   - rule-remove 
+
+## [5.2.11] - 2017-08-04
+ - Changes: https://github.com/softlayer/softlayer-python/compare/v5.2.10...v5.2.11
+ - Sync VLAN and subnet detail CLI output
+
+## [5.2.10] - 2017-07-27
+ - Changes: https://github.com/softlayer/softlayer-python/compare/v5.2.9...v5.2.10
+ - Avoid blindly passing memory result to formatter
+
+## [5.2.9] - 2017-07-27
+ - Changes: https://github.com/softlayer/softlayer-python/compare/v5.2.8...v5.2.9
+ - Add support for dedicated host instances to virtual server upgrades
+#### Added to CLI
+* block volume-set-lun-id
+
+## [5.2.8] - 2017-07-19
+ - Changes: https://github.com/softlayer/softlayer-python/compare/v5.2.7...v5.2.8
+ 
+ * Resolved https://github.com/softlayer/softlayer-python/issues/835
+ * Resolved https://github.com/softlayer/softlayer-python/issues/826
+ * Fix dedicated/private VSI price retrieval for upgrades
+ 
+#### Added to CLI
+* block access-password
+
+## [5.2.7] - 2017-06-22
+ - Changes: https://github.com/softlayer/softlayer-python/compare/v5.2.6...v5.2.7
+
+Adds support for duplicating block and file storage volumes. Only works on Storage as a Service volumes (Volumes that support encryption at rest). 
+
+#### Added to CLI
+ * [block|file] volume-duplicate
+
+## [5.2.6] - 2017-05-22
+ - Changes: https://github.com/softlayer/softlayer-python/compare/v5.2.5...v5.2.6
+ 
+#### Added To CLI
+* ipsec list
+* ipsec detail
+* ipsec configure
+* ipsec update
+* ipsec subnet-add
+* ipsec subnet-remove
+* ipsec translation-add
+* ipsec translation-remove
+* ipsec translation-update
+
+
 ## [5.2.5] - 2017-05-05
  - Changes: https://github.com/softlayer/softlayer-python/compare/v5.2.1...v5.2.5
  

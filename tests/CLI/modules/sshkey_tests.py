@@ -6,14 +6,30 @@
 """
 import json
 import os.path
+import sys
 import tempfile
 
 import mock
 
+from SoftLayer.CLI import exceptions
 from SoftLayer import testing
 
 
 class SshKeyTests(testing.TestCase):
+    def test_add_without_key_errors(self):
+        result = self.run_command(['sshkey', 'add', 'key1'])
+
+        self.assertEqual(result.exit_code, 2)
+        self.assertIsInstance(result.exception, exceptions.ArgumentError)
+
+    def test_add_with_key_file_and_key_argument_errors(self):
+        path = os.path.join(testing.FIXTURE_PATH, 'id_rsa.pub')
+        result = self.run_command(['sshkey', 'add', 'key1',
+                                   '--key=some_key',
+                                   '--in-file=%s' % path])
+
+        self.assertEqual(result.exit_code, 2)
+        self.assertIsInstance(result.exception, exceptions.ArgumentError)
 
     def test_add_by_option(self):
         service = self.client['Security_Ssh_Key']
@@ -102,6 +118,8 @@ class SshKeyTests(testing.TestCase):
                          {'id': 1234, 'label': 'label', 'notes': 'notes'})
 
     def test_print_key_file(self):
+        if(sys.platform.startswith("win")):
+            self.skipTest("Test doesn't work in Windows")
         with tempfile.NamedTemporaryFile() as sshkey_file:
             service = self.client['Security_Ssh_Key']
             mock_key = service.getObject()['key']

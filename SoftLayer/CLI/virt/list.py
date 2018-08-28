@@ -63,10 +63,14 @@ DEFAULT_COLUMNS = [
               % ', '.join(column.name for column in COLUMNS),
               default=','.join(DEFAULT_COLUMNS),
               show_default=True)
+@click.option('--limit', '-l',
+              help='How many results to get in one api call, default is 100',
+              default=100,
+              show_default=True)
 @click.option('--output-json', is_flag=True, default=False)
 @environment.pass_env
 def cli(env, sortby, cpu, domain, datacenter, hostname, memory, network,
-        hourly, monthly, tag, columns, output_json):
+        hourly, monthly, tag, columns, limit, output_json):
     """List virtual servers."""
 
     vsi = SoftLayer.VSManager(env.client)
@@ -79,7 +83,8 @@ def cli(env, sortby, cpu, domain, datacenter, hostname, memory, network,
                                 datacenter=datacenter,
                                 nic_speed=network,
                                 tags=tag,
-                                mask=columns.mask())
+                                mask=columns.mask(),
+                                limit=limit)
 
     if output_json:
         env.fout(json.dumps({'vm': guests}))
@@ -87,7 +92,6 @@ def cli(env, sortby, cpu, domain, datacenter, hostname, memory, network,
 
     table = formatting.Table(columns.columns)
     table.sortby = sortby
-
     for guest in guests:
         table.add_row([value or formatting.blank()
                        for value in columns.row(guest)])

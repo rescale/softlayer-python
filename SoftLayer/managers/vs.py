@@ -6,13 +6,19 @@
     :license: MIT, see LICENSE for more details.
 """
 import datetime
-import itertools
+import logging
 import socket
 import time
+import warnings
 
+from SoftLayer.decoration import retry
 from SoftLayer import exceptions
 from SoftLayer.managers import ordering
 from SoftLayer import utils
+
+LOGGER = logging.getLogger(__name__)
+
+
 # pylint: disable=no-self-use
 
 
@@ -51,6 +57,7 @@ class VSManager(utils.IdentifierMixin, object):
         else:
             self.ordering_manager = ordering_manager
 
+    @retry(logger=LOGGER)
     def list_instances(self, hourly=True, monthly=True, tags=None, cpus=None,
                        memory=None, hostname=None, domain=None,
                        local_disk=None, datacenter=None, nic_speed=None,
@@ -151,9 +158,10 @@ class VSManager(utils.IdentifierMixin, object):
                 utils.query_filter(private_ip))
 
         kwargs['filter'] = _filter.to_dict()
-        func = getattr(self.account, call)
-        return func(**kwargs)
+        kwargs['iter'] = True
+        return self.client.call('Account', call, **kwargs)
 
+    @retry(logger=LOGGER)
     def get_instance(self, instance_id, **kwargs):
         """Get details about a virtual server instance.
 
@@ -191,7 +199,9 @@ class VSManager(utils.IdentifierMixin, object):
                 'primaryIpAddress,'
                 '''networkComponents[id, status, speed, maxSpeed, name,
                                      macAddress, primaryIpAddress, port,
-                                     primarySubnet],'''
+                                     primarySubnet[addressSpace],
+                                     securityGroupBindings[
+                                        securityGroup[id, name]]],'''
                 'lastKnownPowerState.name,'
                 'powerState,'
                 'status,'
@@ -214,17 +224,19 @@ class VSManager(utils.IdentifierMixin, object):
                                         referenceCode]]],'''
                 'hourlyBillingFlag,'
                 'userData,'
-                'billingItem['
-                'id,nextInvoiceTotalRecurringAmount,'
-                'children[categoryCode,nextInvoiceTotalRecurringAmount],'
-                'orderItem.order.userRecord[username]'
-                '],'
+                '''billingItem[id,nextInvoiceTotalRecurringAmount,
+                               children[categoryCode,nextInvoiceTotalRecurringAmount],
+                               orderItem[id,
+                                         order.userRecord[username],
+                                         preset.keyName]],'''
                 'tagReferences[id,tag[name,id]],'
-                'networkVlans[id,vlanNumber,networkSpace]'
+                'networkVlans[id,vlanNumber,networkSpace],'
+                'dedicatedHost.id'
             )
 
         return self.guest.getObject(id=instance_id, **kwargs)
 
+    @retry(logger=LOGGER)
     def get_create_options(self):
         """Retrieves the available options for creating a VS.
 
@@ -261,7 +273,7 @@ class VSManager(utils.IdentifierMixin, object):
         :param string post_url: The URI of the post-install script to run
                                 after reload
         :param list ssh_keys: The SSH keys to add to the root user
-        :param int image_id: The ID of the image to load onto the server
+        :param int image_id: The GUID of the image to load onto the server
 
         .. warning::
             This will reformat the primary drive.
@@ -294,21 +306,29 @@ class VSManager(utils.IdentifierMixin, object):
             hostname=None, domain=None, local_disk=True,
             datacenter=None, os_code=None, image_id=None,
             dedicated=False, public_vlan=None, private_vlan=None,
-            private_subnet=None,
+            private_subnet=None, public_subnet=None,
             userdata=None, nic_speed=None, disks=None, post_uri=None,
-            private=False, ssh_keys=None):
+            private=False, ssh_keys=None, public_security_groups=None,
+            private_security_groups=None, boot_mode=None, **kwargs):
         """Returns a dict appropriate to pass into Virtual_Guest::createObject
 
             See :func:`create_instance` for a list of available options.
         """
-        required = [cpus, memory, hostname, domain]
+        required = [hostname, domain]
+
+        flavor = kwargs.get('flavor', None)
+        host_id = kwargs.get('host_id', None)
 
         mutually_exclusive = [
-            {'os_code': os_code, "image_id": image_id},
+            {'os_code': os_code, 'image_id': image_id},
+            {'cpu': cpus, 'flavor': flavor},
+            {'memory': memory, 'flavor': flavor},
+            {'flavor': flavor, 'dedicated': dedicated},
+            {'flavor': flavor, 'host_id': host_id}
         ]
 
         if not all(required):
-            raise ValueError("cpu, memory, hostname, and domain are required")
+            raise ValueError("hostname, and domain are required")
 
         for mu_ex in mutually_exclusive:
             if all(mu_ex.values()):
@@ -316,17 +336,25 @@ class VSManager(utils.IdentifierMixin, object):
                     'Can only specify one of: %s' % (','.join(mu_ex.keys())))
 
         data = {
-            "startCpus": int(cpus),
-            "maxMemory": int(memory),
+            "startCpus": cpus,
+            "maxMemory": memory,
             "hostname": hostname,
             "domain": domain,
             "localDiskFlag": local_disk,
+            "hourlyBillingFlag": hourly,
+            "supplementalCreateObjectOptions": {
+                "bootMode": boot_mode
+            }
         }
 
-        data["hourlyBillingFlag"] = hourly
+        if flavor:
+            data["supplementalCreateObjectOptions"]["flavorKeyName"] = flavor
 
-        if dedicated:
+        if dedicated and not host_id:
             data["dedicatedAccountHostOnlyFlag"] = dedicated
+
+        if host_id:
+            data["dedicatedHost"] = {"id": host_id}
 
         if private:
             data['privateNetworkOnlyFlag'] = private
@@ -339,18 +367,24 @@ class VSManager(utils.IdentifierMixin, object):
         if datacenter:
             data["datacenter"] = {"name": datacenter}
 
-        if public_vlan:
-            data.update({
-                'primaryNetworkComponent': {
-                    "networkVlan": {"id": int(public_vlan)}}})
-        if private_vlan:
-            vlan_component = {
-                "primaryBackendNetworkComponent": {
-                    "networkVlan": {"id": int(private_vlan)}}}
-            if private_subnet:
-                vlan_component["primaryBackendNetworkComponent"]["networkVlan"]["primarySubnet"] = \
-                    {"id": int(private_subnet)}
-            data.update(vlan_component)
+        if private_vlan or public_vlan or private_subnet or public_subnet:
+            network_components = self._create_network_components(public_vlan, private_vlan,
+                                                                 private_subnet, public_subnet)
+            data.update(network_components)
+
+        if public_security_groups:
+            secgroups = [{'securityGroup': {'id': int(sg)}}
+                         for sg in public_security_groups]
+            pnc = data.get('primaryNetworkComponent', {})
+            pnc['securityGroupBindings'] = secgroups
+            data.update({'primaryNetworkComponent': pnc})
+
+        if private_security_groups:
+            secgroups = [{'securityGroup': {'id': int(sg)}}
+                         for sg in private_security_groups]
+            pbnc = data.get('primaryBackendNetworkComponent', {})
+            pbnc['securityGroupBindings'] = secgroups
+            data.update({'primaryBackendNetworkComponent': pbnc})
 
         if userdata:
             data['userData'] = [{'value': userdata}]
@@ -379,23 +413,44 @@ class VSManager(utils.IdentifierMixin, object):
 
         return data
 
-    def wait_for_transaction(self, instance_id, limit, delay=1):
+    def _create_network_components(
+            self, public_vlan=None, private_vlan=None,
+            private_subnet=None, public_subnet=None):
+
+        parameters = {}
+        if private_vlan:
+            parameters['primaryBackendNetworkComponent'] = {"networkVlan": {"id": int(private_vlan)}}
+        if public_vlan:
+            parameters['primaryNetworkComponent'] = {"networkVlan": {"id": int(public_vlan)}}
+        if public_subnet:
+            if public_vlan is None:
+                raise exceptions.SoftLayerError("You need to specify a public_vlan with public_subnet")
+            else:
+                parameters['primaryNetworkComponent']['networkVlan']['primarySubnet'] = {'id': int(public_subnet)}
+        if private_subnet:
+            if private_vlan is None:
+                raise exceptions.SoftLayerError("You need to specify a private_vlan with private_subnet")
+            else:
+                parameters['primaryBackendNetworkComponent']['networkVlan']['primarySubnet'] = {
+                    "id": int(private_subnet)}
+
+        return parameters
+
+    @retry(logger=LOGGER)
+    def wait_for_transaction(self, instance_id, limit, delay=10):
         """Waits on a VS transaction for the specified amount of time.
 
         This is really just a wrapper for wait_for_ready(pending=True).
         Provided for backwards compatibility.
 
-
         :param int instance_id: The instance ID with the pending transaction
         :param int limit: The maximum amount of time to wait.
-        :param int delay: The number of seconds to sleep before checks.
-                          Defaults to 1.
+        :param int delay: The number of seconds to sleep before checks. Defaults to 10.
         """
 
-        return self.wait_for_ready(instance_id, limit, delay=delay,
-                                   pending=True)
+        return self.wait_for_ready(instance_id, limit, delay=delay, pending=True)
 
-    def wait_for_ready(self, instance_id, limit, delay=1, pending=False):
+    def wait_for_ready(self, instance_id, limit=3600, delay=10, pending=False):
         """Determine if a VS is ready and available.
 
         In some cases though, that can mean that no transactions are running.
@@ -406,9 +461,8 @@ class VSManager(utils.IdentifierMixin, object):
         cancellations.
 
         :param int instance_id: The instance ID with the pending transaction
-        :param int limit: The maximum amount of time to wait.
-        :param int delay: The number of seconds to sleep before checks.
-                          Defaults to 1.
+        :param int limit: The maximum amount of seconds to wait.
+        :param int delay: The number of seconds to sleep before checks. Defaults to 10.
         :param bool pending: Wait for pending transactions not related to
                              provisioning or reloads such as monitoring.
 
@@ -417,42 +471,22 @@ class VSManager(utils.IdentifierMixin, object):
             # Will return once vsi 12345 is ready, or after 10 checks
             ready = mgr.wait_for_ready(12345, 10)
         """
-        until = time.time() + limit
-        for new_instance in itertools.repeat(instance_id):
-            mask = """id,
-                      lastOperatingSystemReload.id,
-                      activeTransaction.id,provisionDate"""
-            instance = self.get_instance(new_instance, mask=mask)
-            last_reload = utils.lookup(instance,
-                                       'lastOperatingSystemReload',
-                                       'id')
-            active_transaction = utils.lookup(instance,
-                                              'activeTransaction',
-                                              'id')
+        now = time.time()
+        until = now + limit
+        mask = "mask[id, lastOperatingSystemReload[id], activeTransaction, provisionDate]"
 
-            reloading = all((
-                active_transaction,
-                last_reload,
-                last_reload == active_transaction,
-            ))
-
-            # only check for outstanding transactions if requested
-            outstanding = False
-            if pending:
-                outstanding = active_transaction
-
-            # return True if the instance has only if the instance has
-            # finished provisioning and isn't currently reloading the OS.
-            if all([instance.get('provisionDate'),
-                    not reloading,
-                    not outstanding]):
+        while now <= until:
+            instance = self.get_instance(instance_id, mask=mask)
+            if utils.is_ready(instance, pending):
                 return True
-
+            transaction = utils.lookup(instance, 'activeTransaction', 'transactionStatus', 'friendlyName')
+            snooze = min(delay, until - now)
+            LOGGER.info("%s - %d not ready. Auto retry in %ds", transaction, instance_id, snooze)
+            time.sleep(snooze)
             now = time.time()
-            if now >= until:
-                return False
 
-            time.sleep(min(delay, until - now))
+        LOGGER.info("Waiting for %d expired.", instance_id)
+        return False
 
     def verify_create_instance(self, **kwargs):
         """Verifies an instance creation command.
@@ -508,7 +542,8 @@ class VSManager(utils.IdentifierMixin, object):
                 'disks': ('100','25'),
                 'local_disk': True,
                 'memory': 1024,
-                'tags': 'test, pleaseCancel'
+                'tags': 'test, pleaseCancel',
+                'public_security_groups': [12, 15]
             }
 
             vsi = mgr.create_instance(**new_vsi)
@@ -517,39 +552,42 @@ class VSManager(utils.IdentifierMixin, object):
 
         :param int cpus: The number of virtual CPUs to include in the instance.
         :param int memory: The amount of RAM to order.
-        :param bool hourly: Flag to indicate if this server should be billed
-                            hourly (default) or monthly.
+        :param bool hourly: Flag to indicate if this server should be billed hourly (default) or monthly.
         :param string hostname: The hostname to use for the new server.
         :param string domain: The domain to use for the new server.
-        :param bool local_disk: Flag to indicate if this should be a local disk
-                                (default) or a SAN disk.
-        :param string datacenter: The short name of the data center in which
-                                  the VS should reside.
-        :param string os_code: The operating system to use. Cannot be specified
-                               if image_id is specified.
-        :param int image_id: The ID of the image to load onto the server.
-                             Cannot be specified if os_code is specified.
-        :param bool dedicated: Flag to indicate if this should be housed on a
-                               dedicated or shared host (default). This will
-                               incur a fee on your account.
-        :param int public_vlan: The ID of the public VLAN on which you want
-                                this VS placed.
-        :param int private_vlan: The ID of the private VLAN on which you want
-                                 this VS placed.
+        :param bool local_disk: Flag to indicate if this should be a local disk (default) or a SAN disk.
+        :param string datacenter: The short name of the data center in which the VS should reside.
+        :param string os_code: The operating system to use. Cannot be specified  if image_id is specified.
+        :param int image_id: The GUID of the image to load onto the server. Cannot be specified if os_code is specified.
+        :param bool dedicated: Flag to indicate if this should be housed on adedicated or shared host (default).
+                               This will incur a fee on your account.
+        :param int public_vlan: The ID of the public VLAN on which you want this VS placed.
+        :param list public_security_groups: The list of security group IDs to apply to the public interface
+        :param list private_security_groups: The list of security group IDs to apply to the private interface
+        :param int private_vlan: The ID of the private VLAN on which you want  this VS placed.
         :param list disks: A list of disk capacities for this server.
-        :param string post_uri: The URI of the post-install script to run
-                                after reload
-        :param bool private: If true, the VS will be provisioned only with
-                             access to the private network. Defaults to false
+        :param string post_uri: The URI of the post-install script to run  after reload
+        :param bool private: If true, the VS will be provisioned only with access to the private network.
+                             Defaults to false
         :param list ssh_keys: The SSH keys to add to the root user
         :param int nic_speed: The port speed to set
         :param string tags: tags to set on the VS as a comma separated list
+        :param string flavor: The key name of the public virtual server flavor being ordered.
+        :param int host_id: The host id of a dedicated host to provision a dedicated host virtual server on.
         """
         tags = kwargs.pop('tags', None)
         inst = self.guest.createObject(self._generate_create_dict(**kwargs))
         if tags is not None:
-            self.guest.setTags(tags, id=inst['id'])
+            self.set_tags(tags, guest_id=inst['id'])
         return inst
+
+    @retry(logger=LOGGER)
+    def set_tags(self, tags, guest_id):
+        """Sets tags on a guest with a retry decorator
+
+        Just calls guest.setTags, but if it fails from an APIError will retry
+        """
+        self.guest.setTags(tags, id=guest_id)
 
     def create_instances(self, config_list):
         """Creates multiple virtual server instances.
@@ -577,7 +615,8 @@ class VSManager(utils.IdentifierMixin, object):
                 'disks': ('100','25'),
                 'local_disk': True,
                 'memory': 1024,
-                'tags': 'test, pleaseCancel'
+                'tags': 'test, pleaseCancel',
+                'public_security_groups': [12, 15]
             }
 
             # using .copy() so we can make changes to individual nodes
@@ -599,7 +638,7 @@ class VSManager(utils.IdentifierMixin, object):
 
         for instance, tag in zip(resp, tags):
             if tag is not None:
-                self.guest.setTags(tag, id=instance['id'])
+                self.set_tags(tag, guest_id=instance['id'])
 
         return resp
 
@@ -636,7 +675,7 @@ class VSManager(utils.IdentifierMixin, object):
         results = self.list_instances(hostname=hostname, mask="id")
         return [result['id'] for result in results]
 
-    def _get_ids_from_ip(self, ip_address):
+    def _get_ids_from_ip(self, ip_address):  # pylint: disable=inconsistent-return-statements
         """List VS ids which match the given ip address."""
         try:
             # Does it look like an ip address?
@@ -680,7 +719,7 @@ class VSManager(utils.IdentifierMixin, object):
             self.guest.setUserMetadata([userdata], id=instance_id)
 
         if tags is not None:
-            self.guest.setTags(tags, id=instance_id)
+            self.set_tags(tags, guest_id=instance_id)
 
         if hostname:
             obj['hostname'] = hostname
@@ -778,13 +817,13 @@ class VSManager(utils.IdentifierMixin, object):
         :param int instance_id: Instance id of the VS to be upgraded
         :param int cpus: The number of virtual CPUs to upgrade to
                             of a VS instance.
-        :param bool public: CPU will be in Private/Public Node.
         :param int memory: RAM of the VS to be upgraded to.
         :param int nic_speed: The port speed to set
+        :param bool public: CPU will be in Private/Public Node.
 
         :returns: bool
         """
-        package_items = self._get_package_items()
+        upgrade_prices = self._get_upgrade_prices(instance_id)
         prices = []
 
         for option, value in {'cpus': cpus,
@@ -792,10 +831,10 @@ class VSManager(utils.IdentifierMixin, object):
                               'nic_speed': nic_speed}.items():
             if not value:
                 continue
-            price_id = self._get_price_id_for_upgrade(package_items,
-                                                      option,
-                                                      value,
-                                                      public)
+            price_id = self._get_price_id_for_upgrade_option(upgrade_prices,
+                                                             option,
+                                                             value,
+                                                             public)
             if not price_id:
                 # Every option provided is expected to have a price
                 raise exceptions.SoftLayerError(
@@ -820,10 +859,16 @@ class VSManager(utils.IdentifierMixin, object):
         return False
 
     def _get_package_items(self):
-        """Following Method gets all the item ids related to VS."""
+        """Following Method gets all the item ids related to VS.
+
+        Deprecated in favor of _get_upgrade_prices()
+        """
+        warnings.warn("use _get_upgrade_prices() instead",
+                      DeprecationWarning)
         mask = [
             'description',
             'capacity',
+            'units',
             'prices[id,locationGroupId,categories[name,id,categoryCode]]'
         ]
         mask = "mask[%s]" % ','.join(mask)
@@ -831,17 +876,30 @@ class VSManager(utils.IdentifierMixin, object):
         package_keyname = "CLOUD_SERVER"
         package = self.ordering_manager.get_package_by_key(package_keyname)
 
-        if package is None:
-            raise ValueError("No package found for key: " + package_keyname)
-
         package_service = self.client['Product_Package']
         return package_service.getItems(id=package['id'], mask=mask)
 
-    def _get_price_id_for_upgrade(self, package_items, option, value,
-                                  public=True):
-        """Find the price id for the option and value to upgrade.
+    def _get_upgrade_prices(self, instance_id, include_downgrade_options=True):
+        """Following Method gets all the price ids related to upgrading a VS.
 
-        :param list package_items: Contains all the items related to an VS
+        :param int instance_id: Instance id of the VS to be upgraded
+
+        :returns: list
+        """
+        mask = [
+            'id',
+            'locationGroupId',
+            'categories[name,id,categoryCode]',
+            'item[description,capacity,units]'
+        ]
+        mask = "mask[%s]" % ','.join(mask)
+        return self.guest.getUpgradeItemPrices(include_downgrade_options, id=instance_id, mask=mask)
+
+    # pylint: disable=inconsistent-return-statements
+    def _get_price_id_for_upgrade_option(self, upgrade_prices, option, value, public=True):
+        """Find the price id for the option and value to upgrade. This
+
+        :param list upgrade_prices: Contains all the prices related to a VS upgrade
         :param string option: Describes type of parameter to be upgraded
         :param int value: The value of the parameter to be upgraded
         :param bool public: CPU will be in Private/Public Node.
@@ -851,9 +909,54 @@ class VSManager(utils.IdentifierMixin, object):
             'cpus': 'guest_core',
             'nic_speed': 'port_speed'
         }
+        category_code = option_category.get(option)
+        for price in upgrade_prices:
+            if price.get('categories') is None or price.get('item') is None:
+                continue
+
+            product = price.get('item')
+            is_private = (product.get('units') == 'PRIVATE_CORE'
+                          or product.get('units') == 'DEDICATED_CORE')
+
+            for category in price.get('categories'):
+                if not (category.get('categoryCode') == category_code
+                        and str(product.get('capacity')) == str(value)):
+                    continue
+
+                if option == 'cpus':
+                    # Public upgrade and public guest_core price
+                    if public and not is_private:
+                        return price.get('id')
+                    # Private upgrade and private guest_core price
+                    elif not public and is_private:
+                        return price.get('id')
+                elif option == 'nic_speed':
+                    if 'Public' in product.get('description'):
+                        return price.get('id')
+                else:
+                    return price.get('id')
+
+    # pylint: disable=inconsistent-return-statements
+    def _get_price_id_for_upgrade(self, package_items, option, value, public=True):
+        """Find the price id for the option and value to upgrade.
+
+        Deprecated in favor of _get_price_id_for_upgrade_option()
+
+        :param list package_items: Contains all the items related to an VS
+        :param string option: Describes type of parameter to be upgraded
+        :param int value: The value of the parameter to be upgraded
+        :param bool public: CPU will be in Private/Public Node.
+        """
+        warnings.warn("use _get_price_id_for_upgrade_option() instead",
+                      DeprecationWarning)
+        option_category = {
+            'memory': 'ram',
+            'cpus': 'guest_core',
+            'nic_speed': 'port_speed'
+        }
         category_code = option_category[option]
         for item in package_items:
-            is_private = str(item['description']).startswith('Private')
+            is_private = (item.get('units') == 'PRIVATE_CORE')
             for price in item['prices']:
                 if 'locationGroupId' in price and price['locationGroupId']:
                     # Skip location based prices

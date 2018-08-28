@@ -50,6 +50,15 @@ allowedSubnets.primaryBackendIpAddress
 allowedIpAddresses.primaryBackendIpAddress
 """),
     column_helper.Column(
+        'source_subnet',
+        ('allowedHost', 'sourceSubnet',),
+        """
+allowedVirtualGuests.allowedHost.sourceSubnet
+allowedHardware.allowedHost.sourceSubnet
+allowedSubnets.allowedHost.sourceSubnet
+allowedIpAddresses.allowedHost.sourceSubnet
+"""),
+    column_helper.Column(
         'host_iqn',
         ('allowedHost', 'name',),
         """
@@ -76,6 +85,15 @@ allowedHardware.allowedHost.credential.password
 allowedSubnets.allowedHost.credential.password
 allowedIpAddresses.allowedHost.credential.password
 """),
+    column_helper.Column(
+        'allowed_host_id',
+        ('allowedHost', 'id',),
+        """
+allowedVirtualGuests.allowedHost.id
+allowedHardware.allowedHost.id
+allowedSubnets.allowedHost.id
+allowedIpAddresses.allowedHost.id
+"""),
 ]
 
 
@@ -84,7 +102,9 @@ DEFAULT_COLUMNS = [
     'name',
     'type',
     'private_ip_address',
+    'source_subnet',
     'host_iqn',
     'username',
     'password',
+    'allowed_host_id',
 ]

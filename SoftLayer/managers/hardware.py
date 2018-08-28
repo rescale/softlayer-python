@@ -5,11 +5,18 @@
 
     :license: MIT, see LICENSE for more details.
 """
+import logging
 import socket
+import time
+
 
 import SoftLayer
+from SoftLayer.decoration import retry
 from SoftLayer.managers import ordering
 from SoftLayer import utils
+
+LOGGER = logging.getLogger(__name__)
+
 # Invalid names are ignored due to long method names and short argument names
 # pylint: disable=invalid-name, no-self-use
 
@@ -40,6 +47,7 @@ class HardwareManager(utils.IdentifierMixin, object):
                                               If none is provided, one will be
                                               auto initialized.
     """
+
     def __init__(self, client, ordering_manager=None):
         self.client = client
         self.hardware = self.client['Hardware_Server']
@@ -50,8 +58,7 @@ class HardwareManager(utils.IdentifierMixin, object):
         else:
             self.ordering_manager = ordering_manager
 
-    def cancel_hardware(self, hardware_id, reason='unneeded', comment='',
-                        immediate=False):
+    def cancel_hardware(self, hardware_id, reason='unneeded', comment='', immediate=False):
         """Cancels the specified dedicated server.
 
         Example::
@@ -60,28 +67,51 @@ class HardwareManager(utils.IdentifierMixin, object):
             result = mgr.cancel_hardware(hardware_id=1234)
 
         :param int hardware_id: The ID of the hardware to be cancelled.
-        :param string reason: The reason code for the cancellation. This should
-                              come from :func:`get_cancellation_reasons`.
-        :param string comment: An optional comment to include with the
-                               cancellation.
+        :param string reason: The reason code for the cancellation. This should come from
+                              :func:`get_cancellation_reasons`.
+        :param string comment: An optional comment to include with the cancellation.
+        :param bool immediate: If set to True, will automatically update the cancelation ticket to request
+                               the resource be reclaimed asap. This request still has to be reviewed by a human
+        :returns: True on success or an exception
         """
 
         # Get cancel reason
         reasons = self.get_cancellation_reasons()
         cancel_reason = reasons.get(reason, reasons['unneeded'])
+        ticket_mgr = SoftLayer.TicketManager(self.client)
+        mask = 'mask[id, hourlyBillingFlag, billingItem[id], openCancellationTicket[id], activeTransaction]'
+        hw_billing = self.get_hardware(hardware_id, mask=mask)
 
-        hw_billing = self.get_hardware(hardware_id,
-                                       mask='mask[id, billingItem.id]')
+        if 'activeTransaction' in hw_billing:
+            raise SoftLayer.SoftLayerError("Unable to cancel hardware with running transaction")
+
         if 'billingItem' not in hw_billing:
-            raise SoftLayer.SoftLayerError(
-                "No billing item found for hardware")
+            raise SoftLayer.SoftLayerError("Ticket #%s already exists for this server" %
+                                           hw_billing['openCancellationTicket']['id'])
 
         billing_id = hw_billing['billingItem']['id']
 
-        return self.client.call('Billing_Item', 'cancelItem',
-                                immediate, False, cancel_reason, comment,
-                                id=billing_id)
+        if immediate and not hw_billing['hourlyBillingFlag']:
+            LOGGER.warning("Immediate cancelation of montly servers is not guaranteed. " +
+                           "Please check the cancelation ticket for updates.")
 
+            result = self.client.call('Billing_Item', 'cancelItem',
+                                      False, False, cancel_reason, comment, id=billing_id)
+            hw_billing = self.get_hardware(hardware_id, mask=mask)
+            ticket_number = hw_billing['openCancellationTicket']['id']
+            cancel_message = "Please reclaim this server ASAP, it is no longer needed. Thankyou."
+            ticket_mgr.update_ticket(ticket_number, cancel_message)
+            LOGGER.info("Cancelation ticket #%s has been updated requesting immediate reclaim", ticket_number)
+        else:
+            result = self.client.call('Billing_Item', 'cancelItem',
+                                      immediate, False, cancel_reason, comment, id=billing_id)
+            hw_billing = self.get_hardware(hardware_id, mask=mask)
+            ticket_number = hw_billing['openCancellationTicket']['id']
+            LOGGER.info("Cancelation ticket #%s has been created", ticket_number)
+
+        return result
+
+    @retry(logger=LOGGER)
     def list_hardware(self, tags=None, cpus=None, memory=None, hostname=None,
                       domain=None, datacenter=None, nic_speed=None,
                       public_ip=None, private_ip=None, **kwargs):
@@ -167,8 +197,10 @@ class HardwareManager(utils.IdentifierMixin, object):
                 utils.query_filter(private_ip))
 
         kwargs['filter'] = _filter.to_dict()
-        return self.account.getHardware(**kwargs)
+        kwargs['iter'] = True
+        return self.client.call('Account', 'getHardware', **kwargs)
 
+    @retry(logger=LOGGER)
     def get_hardware(self, hardware_id, **kwargs):
         """Get details about a hardware device.
 
@@ -208,6 +240,12 @@ class HardwareManager(utils.IdentifierMixin, object):
                 'hardwareChassis[id,name],'
                 'activeTransaction[id, transactionStatus[friendlyName,name]],'
                 '''operatingSystem[
+                    softwareLicense[softwareDescription[manufacturer,
+                                                        name,
+                                                        version,
+                                                        referenceCode]],
+                    passwords[username,password]],'''
+                '''softwareComponents[
                     softwareLicense[softwareDescription[manufacturer,
                                                         name,
                                                         version,
@@ -290,7 +328,7 @@ class HardwareManager(utils.IdentifierMixin, object):
 
         See get_create_options() for valid arguments.
 
-        :param string size: server size name
+        :param string size: server size name or presetId
         :param string hostname: server hostname
         :param string domain: server domain name
         :param string location: location (datacenter) name
@@ -335,6 +373,7 @@ class HardwareManager(utils.IdentifierMixin, object):
             'moving': 'Moving to competitor',
         }
 
+    @retry(logger=LOGGER)
     def get_create_options(self):
         """Returns valid options for ordering hardware."""
 
@@ -350,7 +389,7 @@ class HardwareManager(utils.IdentifierMixin, object):
 
         # Sizes
         sizes = []
-        for preset in package['activePresets']:
+        for preset in package['activePresets'] + package['accountRestrictedActivePresets']:
             sizes.append({
                 'name': preset['description'],
                 'key': preset['keyName']
@@ -405,28 +444,26 @@ class HardwareManager(utils.IdentifierMixin, object):
         return [hw['hardwareId']
                 for hw in self.get_hardware_status_from_order(order_id)]
 
+    @retry(logger=LOGGER)
     def _get_package(self):
         """Get the package related to simple hardware ordering."""
         mask = '''
-items[
-    keyName,
-    capacity,
-    description,
-    attributes[id,attributeTypeKeyName],
-    itemCategory[id,categoryCode],
-    softwareDescription[id,referenceCode,longDescription],
-    prices
-],
-activePresets,
-regions[location[location[priceGroups]]]
-'''
+            items[
+                keyName,
+                capacity,
+                description,
+                attributes[id,attributeTypeKeyName],
+                itemCategory[id,categoryCode],
+                softwareDescription[id,referenceCode,longDescription],
+                prices
+            ],
+            activePresets,
+            accountRestrictedActivePresets,
+            regions[location[location[priceGroups]]]
+            '''
 
         package_keyname = 'BARE_METAL_SERVER'
-        package = self.ordering_manager.get_package_by_key(package_keyname,
-                                                           mask=mask)
-        if package is None:
-            raise SoftLayer.SoftLayerError("Ordering package not found")
-
+        package = self.ordering_manager.get_package_by_key(package_keyname, mask=mask)
         return package
 
     def _generate_create_dict(self,
@@ -503,7 +540,7 @@ regions[location[location[priceGroups]]]
         results = self.list_hardware(hostname=hostname, mask="id")
         return [result['id'] for result in results]
 
-    def _get_ids_from_ip(self, ip):
+    def _get_ids_from_ip(self, ip):  # pylint: disable=inconsistent-return-statements
         """Returns list of matching hardware IDs for a given ip address."""
         try:
             # Does it look like an ip address?
@@ -587,8 +624,33 @@ regions[location[location[priceGroups]]]
         """
 
         return self.hardware.createFirmwareUpdateTransaction(
-            bool(ipmi), bool(raid_controller), bool(bios), bool(hard_drive),
-            id=hardware_id)
+            bool(ipmi), bool(raid_controller), bool(bios), bool(hard_drive), id=hardware_id)
+
+    def wait_for_ready(self, instance_id, limit=14400, delay=10, pending=False):
+        """Determine if a Server is ready.
+
+        A server is ready when no transactions are running on it.
+
+        :param int instance_id: The instance ID with the pending transaction
+        :param int limit: The maximum amount of seconds to wait.
+        :param int delay: The number of seconds to sleep before checks. Defaults to 10.
+        """
+        now = time.time()
+        until = now + limit
+        mask = "mask[id, lastOperatingSystemReload[id], activeTransaction, provisionDate]"
+        instance = self.get_hardware(instance_id, mask=mask)
+        while now <= until:
+            if utils.is_ready(instance, pending):
+                return True
+            transaction = utils.lookup(instance, 'activeTransaction', 'transactionStatus', 'friendlyName')
+            snooze = min(delay, until - now)
+            LOGGER.info("%s - %d not ready. Auto retry in %ds", transaction, instance_id, snooze)
+            time.sleep(snooze)
+            instance = self.get_hardware(instance_id, mask=mask)
+            now = time.time()
+
+        LOGGER.info("Waiting for %d expired.", instance_id)
+        return False
 
 
 def _get_extra_price_id(items, key_name, hourly, location):
@@ -751,18 +813,16 @@ def _get_location(package, location):
         if region['location']['location']['name'] == location:
             return region
 
-    raise SoftLayer.SoftLayerError("Could not find valid location for: '%s'"
-                                   % location)
+    raise SoftLayer.SoftLayerError("Could not find valid location for: '%s'" % location)
 
 
 def _get_preset_id(package, size):
     """Get the preset id given the keyName of the preset."""
-    for preset in package['activePresets']:
-        if preset['keyName'] == size:
+    for preset in package['activePresets'] + package['accountRestrictedActivePresets']:
+        if preset['keyName'] == size or preset['id'] == size:
             return preset['id']
 
-    raise SoftLayer.SoftLayerError("Could not find valid size for: '%s'"
-                                   % size)
+    raise SoftLayer.SoftLayerError("Could not find valid size for: '%s'" % size)
 
 def _get_billing_items(order):
     return [top['billingItem'] for top in order['orderTopLevelItems']

@@ -9,6 +9,8 @@ from SoftLayer import exceptions
 from SoftLayer.managers import storage_utils
 from SoftLayer import utils
 
+# pylint: disable=too-many-public-methods
+
 
 class BlockStorageManager(utils.IdentifierMixin, object):
     """Manages SoftLayer Block Storage volumes.
@@ -41,7 +43,8 @@ class BlockStorageManager(utils.IdentifierMixin, object):
                 'bytesUsed',
                 'serviceResource.datacenter[name]',
                 'serviceResourceBackendIpAddress',
-                'activeTransactionCount'
+                'activeTransactionCount',
+                'replicationPartnerCount'
             ]
             kwargs['mask'] = ','.join(items)
 
@@ -54,7 +57,7 @@ class BlockStorageManager(utils.IdentifierMixin, object):
             utils.query_filter('*BLOCK_STORAGE*'))
         if storage_type:
             _filter['iscsiNetworkStorage']['storageType']['keyName'] = (
-                utils.query_filter('%s_BLOCK_STORAGE' % storage_type.upper()))
+                utils.query_filter('%s_BLOCK_STORAGE*' % storage_type.upper()))
 
         if datacenter:
             _filter['iscsiNetworkStorage']['serviceResource']['datacenter'][
@@ -87,8 +90,11 @@ class BlockStorageManager(utils.IdentifierMixin, object):
                 'serviceResource.datacenter[name]',
                 'serviceResourceBackendIpAddress',
                 'storageTierLevel',
-                'iops',
+                'provisionedIops',
                 'lunId',
+                'originalVolumeName',
+                'originalSnapshotName',
+                'originalVolumeSize',
                 'activeTransactionCount',
                 'activeTransactions.transactionStatus[friendlyName]',
                 'replicationPartnerCount',
@@ -99,8 +105,7 @@ class BlockStorageManager(utils.IdentifierMixin, object):
                 'replicationSchedule[type[keyname]]]',
             ]
             kwargs['mask'] = ','.join(items)
-        return self.client.call('Network_Storage', 'getObject',
-                                id=volume_id, **kwargs)
+        return self.client.call('Network_Storage', 'getObject', id=volume_id, **kwargs)
 
     def get_block_volume_access_list(self, volume_id, **kwargs):
         """Returns a list of authorized hosts for a specified volume.
@@ -112,7 +117,7 @@ class BlockStorageManager(utils.IdentifierMixin, object):
         if 'mask' not in kwargs:
             items = [
                 'id',
-                'allowedVirtualGuests[allowedHost[credential]]',
+                'allowedVirtualGuests[allowedHost[credential, sourceSubnet]]',
                 'allowedHardware[allowedHost[credential]]',
                 'allowedSubnets[allowedHost[credential]]',
                 'allowedIpAddresses[allowedHost[credential]]',
@@ -135,10 +140,11 @@ class BlockStorageManager(utils.IdentifierMixin, object):
                 'snapshotSizeBytes',
                 'storageType[keyName]',
                 'snapshotCreationTimestamp',
+                'intervalSchedule',
                 'hourlySchedule',
                 'dailySchedule',
                 'weeklySchedule'
-                ]
+            ]
 
             kwargs['mask'] = ','.join(items)
 
@@ -228,9 +234,11 @@ class BlockStorageManager(utils.IdentifierMixin, object):
         :return: Returns a SoftLayer_Container_Product_Order_Receipt
         """
 
-        block_mask = 'billingItem[activeChildren],storageTierLevel,'\
-                     'osType,snapshotCapacityGb,schedules,'\
-                     'hourlySchedule,dailySchedule,weeklySchedule'
+        block_mask = 'billingItem[activeChildren,hourlyFlag],'\
+                     'storageTierLevel,osType,staasVersion,'\
+                     'hasEncryptionAtRest,snapshotCapacityGb,schedules,'\
+                     'intervalSchedule,hourlySchedule,dailySchedule,'\
+                     'weeklySchedule,storageType[keyName],provisionedIops'
         block_volume = self.get_block_volume_details(volume_id,
                                                      mask=block_mask)
 
@@ -244,11 +252,83 @@ class BlockStorageManager(utils.IdentifierMixin, object):
                     "automatically; must specify manually")
 
         order = storage_utils.prepare_replicant_order_object(
-            self, volume_id, snapshot_schedule, location, tier,
-            block_volume, 'block'
+            self, snapshot_schedule, location, tier, block_volume, 'block'
         )
 
         order['osFormatType'] = {'keyName': os_type}
+
+        return self.client.call('Product_Order', 'placeOrder', order)
+
+    def order_duplicate_volume(self, origin_volume_id, origin_snapshot_id=None,
+                               duplicate_size=None, duplicate_iops=None,
+                               duplicate_tier_level=None,
+                               duplicate_snapshot_size=None,
+                               hourly_billing_flag=False):
+        """Places an order for a duplicate block volume.
+
+        :param origin_volume_id: The ID of the origin volume to be duplicated
+        :param origin_snapshot_id: Origin snapshot ID to use for duplication
+        :param duplicate_size: Size/capacity for the duplicate volume
+        :param duplicate_iops: The IOPS per GB for the duplicate volume
+        :param duplicate_tier_level: Tier level for the duplicate volume
+        :param duplicate_snapshot_size: Snapshot space size for the duplicate
+        :param hourly_billing_flag: Billing type, monthly (False)
+            or hourly (True), default to monthly.
+        :return: Returns a SoftLayer_Container_Product_Order_Receipt
+        """
+
+        block_mask = 'id,billingItem[location,hourlyFlag],snapshotCapacityGb,'\
+                     'storageType[keyName],capacityGb,originalVolumeSize,'\
+                     'provisionedIops,storageTierLevel,osType[keyName],'\
+                     'staasVersion,hasEncryptionAtRest'
+        origin_volume = self.get_block_volume_details(origin_volume_id,
+                                                      mask=block_mask)
+
+        if isinstance(utils.lookup(origin_volume, 'osType', 'keyName'), str):
+            os_type = origin_volume['osType']['keyName']
+        else:
+            raise exceptions.SoftLayerError(
+                "Cannot find origin volume's os-type")
+
+        order = storage_utils.prepare_duplicate_order_object(
+            self, origin_volume, duplicate_iops, duplicate_tier_level,
+            duplicate_size, duplicate_snapshot_size, 'block',
+            hourly_billing_flag
+        )
+
+        order['osFormatType'] = {'keyName': os_type}
+
+        if origin_snapshot_id is not None:
+            order['duplicateOriginSnapshotId'] = origin_snapshot_id
+
+        return self.client.call('Product_Order', 'placeOrder', order)
+
+    def order_modified_volume(self, volume_id, new_size=None, new_iops=None, new_tier_level=None):
+        """Places an order for modifying an existing block volume.
+
+        :param volume_id: The ID of the volume to be modified
+        :param new_size: The new size/capacity for the volume
+        :param new_iops: The new IOPS for the volume
+        :param new_tier_level: The new tier level for the volume
+        :return: Returns a SoftLayer_Container_Product_Order_Receipt
+        """
+
+        mask_items = [
+            'id',
+            'billingItem',
+            'storageType[keyName]',
+            'capacityGb',
+            'provisionedIops',
+            'storageTierLevel',
+            'staasVersion',
+            'hasEncryptionAtRest',
+        ]
+        block_mask = ','.join(mask_items)
+        volume = self.get_block_volume_details(volume_id, mask=block_mask)
+
+        order = storage_utils.prepare_modify_order_object(
+            self, volume, new_iops, new_tier_level, new_size
+        )
 
         return self.client.call('Product_Order', 'placeOrder', order)
 
@@ -261,70 +341,30 @@ class BlockStorageManager(utils.IdentifierMixin, object):
                                 id=snapshot_id)
 
     def order_block_volume(self, storage_type, location, size, os_type,
-                           iops=None, tier_level=None, snapshot_size=None):
+                           iops=None, tier_level=None, snapshot_size=None,
+                           service_offering='storage_as_a_service',
+                           hourly_billing_flag=False):
         """Places an order for a block volume.
 
-        :param storage_type: "performance_storage_iscsi" (performance)
-                             or "storage_service_enterprise" (endurance)
+        :param storage_type: 'performance' or 'endurance'
         :param location: Datacenter in which to order iSCSI volume
         :param size: Size of the desired volume, in GB
         :param os_type: OS Type to use for volume alignment, see help for list
         :param iops: Number of IOPs for a "Performance" order
         :param tier_level: Tier level to use for an "Endurance" order
         :param snapshot_size: The size of optional snapshot space,
-        if snapshot space should also be ordered (None if not ordered)
+            if snapshot space should also be ordered (None if not ordered)
+        :param service_offering: Requested offering package to use in the order
+            ('storage_as_a_service', 'enterprise', or 'performance')
+        :param hourly_billing_flag: Billing type, monthly (False)
+            or hourly (True), default to monthly.
         """
+        order = storage_utils.prepare_volume_order_object(
+            self, storage_type, location, size, iops, tier_level,
+            snapshot_size, service_offering, 'block', hourly_billing_flag
+        )
 
-        try:
-            location_id = storage_utils.get_location_id(self, location)
-        except ValueError:
-            raise exceptions.SoftLayerError(
-                "Invalid datacenter name specified. "
-                "Please provide the lower case short name (e.g.: dal09)")
-
-        base_type_name = 'SoftLayer_Container_Product_Order_Network_'
-        package = storage_utils.get_package(self, storage_type)
-        if storage_type == 'performance_storage_iscsi':
-            complex_type = base_type_name + 'PerformanceStorage_Iscsi'
-            prices = [
-                storage_utils.find_performance_price(
-                    package,
-                    'performance_storage_iscsi'
-                    ),
-                storage_utils.find_performance_space_price(package, size),
-                storage_utils.find_performance_iops_price(package, size, iops),
-            ]
-        elif storage_type == 'storage_service_enterprise':
-            complex_type = base_type_name + 'Storage_Enterprise'
-            prices = [
-                storage_utils.find_endurance_price(package, 'storage_block'),
-                storage_utils.find_endurance_price(
-                    package,
-                    'storage_service_enterprise'
-                    ),
-                storage_utils.find_endurance_space_price(
-                    package,
-                    size,
-                    tier_level
-                    ),
-                storage_utils.find_endurance_tier_price(package, tier_level),
-            ]
-            if snapshot_size is not None:
-                prices.append(storage_utils.find_snapshot_space_price(
-                    package, snapshot_size, tier_level))
-        else:
-            raise exceptions.SoftLayerError(
-                "Block volume storage_type must be either "
-                "Performance or Endurance")
-
-        order = {
-            'complexType': complex_type,
-            'packageId': package['id'],
-            'osFormatType': {'keyName': os_type},
-            'prices': prices,
-            'quantity': 1,
-            'location': location_id,
-        }
+        order['osFormatType'] = {'keyName': os_type}
 
         return self.client.call('Product_Order', 'placeOrder', order)
 
@@ -349,41 +389,17 @@ class BlockStorageManager(utils.IdentifierMixin, object):
         :param boolean upgrade: Flag to indicate if this order is an upgrade
         :return: Returns a SoftLayer_Container_Product_Order_Receipt
         """
-        package = storage_utils.get_package(self, 'storage_service_enterprise')
-        block_mask = 'serviceResource.datacenter[id],'\
-            'storageTierLevel,billingItem'
+        block_mask = 'id,billingItem[location,hourlyFlag],'\
+            'storageType[keyName],storageTierLevel,provisionedIops,'\
+            'staasVersion,hasEncryptionAtRest'
         block_volume = self.get_block_volume_details(volume_id,
                                                      mask=block_mask,
                                                      **kwargs)
 
-        storage_type = block_volume['billingItem']['categoryCode']
-        if storage_type != 'storage_service_enterprise':
-            raise exceptions.SoftLayerError(
-                "Block volume storage_type must be Endurance")
+        order = storage_utils.prepare_snapshot_order_object(
+            self, block_volume, capacity, tier, upgrade)
 
-        if tier is None:
-            tier = storage_utils.find_endurance_tier_iops_per_gb(block_volume)
-        prices = [storage_utils.find_snapshot_space_price(
-            package, capacity, tier)]
-
-        if upgrade:
-            complex_type = 'SoftLayer_Container_Product_Order_'\
-                           'Network_Storage_Enterprise_SnapshotSpace_Upgrade'
-        else:
-            complex_type = 'SoftLayer_Container_Product_Order_'\
-                           'Network_Storage_Enterprise_SnapshotSpace'
-
-        snapshot_space_order = {
-            'complexType': complex_type,
-            'packageId': package['id'],
-            'prices': prices,
-            'quantity': 1,
-            'location': block_volume['serviceResource']['datacenter']['id'],
-            'volumeId': volume_id,
-        }
-
-        return self.client.call('Product_Order', 'placeOrder',
-                                snapshot_space_order)
+        return self.client.call('Product_Order', 'placeOrder', order)
 
     def cancel_snapshot_space(self, volume_id,
                               reason='No longer needed',
@@ -392,13 +408,12 @@ class BlockStorageManager(utils.IdentifierMixin, object):
 
         :param integer volume_id: The volume ID
         :param string reason: The reason for cancellation
-        :param boolean immediate_flag: Cancel immediately or
-        on anniversary date
+        :param boolean immediate_flag: Cancel immediately or on anniversary date
         """
 
         block_volume = self.get_block_volume_details(
             volume_id,
-            mask='mask[id,billingItem[activeChildren]]')
+            mask='mask[id,billingItem[activeChildren,hourlyFlag]]')
 
         if 'activeChildren' not in block_volume['billingItem']:
             raise exceptions.SoftLayerError(
@@ -415,6 +430,9 @@ class BlockStorageManager(utils.IdentifierMixin, object):
         if not billing_item_id:
             raise exceptions.SoftLayerError(
                 'No snapshot space found to cancel')
+
+        if utils.lookup(block_volume, 'billingItem', 'hourlyFlag'):
+            immediate = True
 
         return self.client['Billing_Item'].cancelItem(
             immediate,
@@ -455,6 +473,20 @@ class BlockStorageManager(utils.IdentifierMixin, object):
         return self.client.call('Network_Storage', 'disableSnapshots',
                                 schedule_type, id=volume_id)
 
+    def list_volume_schedules(self, volume_id):
+        """Lists schedules for a given volume
+
+        :param integer volume_id: The id of the volume
+        :return: Returns list of schedules assigned to a given volume
+        """
+        volume_detail = self.client.call(
+            'Network_Storage',
+            'getObject',
+            id=volume_id,
+            mask='schedules[type,properties[type]]')
+
+        return utils.lookup(volume_detail, 'schedules')
+
     def restore_from_snapshot(self, volume_id, snapshot_id):
         """Restores a specific volume from a snapshot
 
@@ -473,13 +505,19 @@ class BlockStorageManager(utils.IdentifierMixin, object):
 
         :param integer volume_id: The volume ID
         :param string reason: The reason for cancellation
-        :param boolean immediate_flag: Cancel immediately or
-        on anniversary date
+        :param boolean immediate_flag: Cancel immediately or on anniversary date
         """
         block_volume = self.get_block_volume_details(
             volume_id,
-            mask='mask[id,billingItem[id]]')
+            mask='mask[id,billingItem[id,hourlyFlag]]')
+
+        if 'billingItem' not in block_volume:
+            raise exceptions.SoftLayerError("Block Storage was already cancelled")
+
         billing_item_id = block_volume['billingItem']['id']
+
+        if utils.lookup(block_volume, 'billingItem', 'hourlyFlag'):
+            immediate = True
 
         return self.client['Billing_Item'].cancelItem(
             immediate,
@@ -503,9 +541,29 @@ class BlockStorageManager(utils.IdentifierMixin, object):
         """Failback from a volume replicant.
 
         :param integer volume_id: The id of the volume
-        :param integer: ID of replicant to failback from
+        :param integer replicant_id: ID of replicant to failback from
         :return: Returns whether failback was successful or not
         """
 
         return self.client.call('Network_Storage', 'failbackFromReplicant',
                                 replicant_id, id=volume_id)
+
+    def set_credential_password(self, access_id, password):
+        """Sets the password for an access host
+
+        :param integer access_id: id of the access host
+        :param string password: password to  set
+        """
+
+        return self.client.call('Network_Storage_Allowed_Host', 'setCredentialPassword',
+                                password, id=access_id)
+
+    def create_or_update_lun_id(self, volume_id, lun_id):
+        """Set the LUN ID on a volume.
+
+        :param integer volume_id: The id of the volume
+        :param integer lun_id: LUN ID to set on the volume
+        :return: a SoftLayer_Network_Storage_Property object
+        """
+        return self.client.call('Network_Storage', 'createOrUpdateLunId',
+                                lun_id, id=volume_id)

@@ -13,4 +13,6 @@ build/*
 dist/*
 *.egg-info
 .cache
-
+.idea
+.pytest_cache/*
+slcli

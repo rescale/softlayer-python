@@ -23,11 +23,14 @@ COLUMNS = [
         mask="storageType.keyName"),
     column_helper.Column('capacity_gb', ('capacityGb',), mask="capacityGb"),
     column_helper.Column('bytes_used', ('bytesUsed',), mask="bytesUsed"),
+    column_helper.Column('iops', ('iops',), mask="iops"),
     column_helper.Column('ip_addr', ('serviceResourceBackendIpAddress',),
                          mask="serviceResourceBackendIpAddress"),
     column_helper.Column('lunId', ('lunId',), mask="lunId"),
     column_helper.Column('active_transactions', ('activeTransactionCount',),
                          mask="activeTransactionCount"),
+    column_helper.Column('rep_partner_count', ('replicationPartnerCount',),
+                         mask="replicationPartnerCount"),
     column_helper.Column(
         'created_by',
         ('billingItem', 'orderItem', 'order', 'userRecord', 'username')),
@@ -40,9 +43,11 @@ DEFAULT_COLUMNS = [
     'storage_type',
     'capacity_gb',
     'bytes_used',
+    'iops',
     'ip_addr',
     'lunId',
-    'active_transactions'
+    'active_transactions',
+    'rep_partner_count'
 ]
 
 

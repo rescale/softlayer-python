@@ -12,11 +12,7 @@ from SoftLayer.CLI import helpers
 
 @click.command()
 @click.argument('identifier')
-@click.option('--wait',
-              default=0,
-              show_default=True,
-              type=click.INT,
-              help="Name of the image")
+@click.option('--wait', default=0, show_default=True, type=click.INT, help="Seconds to wait")
 @click.option('--output-json', is_flag=True, default=False)
 @environment.pass_env
 def cli(env, identifier, wait, output_json=False):

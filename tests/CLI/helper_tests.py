@@ -7,7 +7,9 @@
 """
 import json
 import os
+import sys
 import tempfile
+
 
 import click
 import mock
@@ -250,18 +252,15 @@ class CLIAbortTests(testing.TestCase):
 class ResolveIdTests(testing.TestCase):
 
     def test_resolve_id_one(self):
-        resolver = lambda r: [12345]
-        self.assertEqual(helpers.resolve_id(resolver, 'test'), 12345)
+        self.assertEqual(helpers.resolve_id(lambda r: [12345], 'test'), 12345)
 
     def test_resolve_id_none(self):
-        resolver = lambda r: []
         self.assertRaises(
-            exceptions.CLIAbort, helpers.resolve_id, resolver, 'test')
+            exceptions.CLIAbort, helpers.resolve_id, lambda r: [], 'test')
 
     def test_resolve_id_multiple(self):
-        resolver = lambda r: [12345, 54321]
         self.assertRaises(
-            exceptions.CLIAbort, helpers.resolve_id, resolver, 'test')
+            exceptions.CLIAbort, helpers.resolve_id, lambda r: [12345, 54321], 'test')
 
 
 class TestTable(testing.TestCase):
@@ -369,7 +368,8 @@ class TestFormatOutput(testing.TestCase):
         self.assertEqual({}, t)
 
     def test_sequentialoutput(self):
-        t = formatting.SequentialOutput()
+        # specifying the separator prevents windows from using \n\r
+        t = formatting.SequentialOutput(separator="\n")
         self.assertTrue(hasattr(t, 'append'))
         t.append('This is a test')
         t.append('')
@@ -446,7 +446,11 @@ class TestTemplateArgs(testing.TestCase):
 
 
 class TestExportToTemplate(testing.TestCase):
+
     def test_export_to_template(self):
+        if(sys.platform.startswith("win")):
+            self.skipTest("Test doesn't work in Windows")
+        # Tempfile creation is wonky on windows
         with tempfile.NamedTemporaryFile() as tmp:
 
             template.export_to_template(tmp.name, {
