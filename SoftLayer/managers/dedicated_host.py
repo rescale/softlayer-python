@@ -227,6 +227,27 @@ class DedicatedHostManager(utils.IdentifierMixin, object):
         kwargs['filter'] = _filter.to_dict()
         return self.account.getDedicatedHosts(**kwargs)
 
+
+    def get_cancellation_reasons(self):
+        """Returns a dictionary of valid cancellation reasons.
+
+        These can be used when cancelling a dedicated server
+        via :func:`cancel_host`.
+        """
+        return {
+            'unneeded': 'No longer needed',
+            'closing': 'Business closing down',
+            'cost': 'Server / Upgrade Costs',
+            'migrate_larger': 'Migrating to larger server',
+            'migrate_smaller': 'Migrating to smaller server',
+            'datacenter': 'Migrating to a different SoftLayer datacenter',
+            'performance': 'Network performance / latency',
+            'support': 'Support response / timing',
+            'sales': 'Sales process / upgrades',
+            'moving': 'Moving to competitor',
+        }
+
+
     def get_host(self, host_id, **kwargs):
         """Get details about a dedicated host.
 
