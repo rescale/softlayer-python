@@ -161,41 +161,11 @@ def _parse_create_args(client, args):
 @click.option('--image', help="Image ID. See: 'slcli image list' for reference")
 @click.option('--boot-mode', type=click.STRING,
               help="Specify the mode to boot the OS in. Supported modes are HVM and PV.")
-@click.option('--billing', type=click.Choice(['hourly', 'monthly']), default='hourly', show_default=True,
-@click.command(epilog="See 'slcli vs create-options' for valid options")
+@click.option('--billing', type=click.Choice(['hourly', 'monthly']), default='hourly', show_default=True, help="Billing rate")
 @click.option('--hostnames', '-H',
               help="Hosts portion of the FQDN",
               required=True,
               prompt=True)
-@click.option('--domain', '-D',
-              help="Domain portion of the FQDN",
-              required=True,
-              prompt=True)
-@click.option('--cpu', '-c',
-              help="Number of CPU cores (not available with flavors)",
-              type=click.INT)
-@click.option('--memory', '-m',
-              help="Memory in mebibytes (not available with flavors)",
-              type=virt.MEM_TYPE)
-@click.option('--flavor', '-f',
-              help="Public Virtual Server flavor key name",
-              type=click.STRING)
-@click.option('--datacenter', '-d',
-              help="Datacenter shortname",
-              required=True,
-              prompt=True)
-@click.option('--os', '-o',
-              help="OS install code. Tip: you can specify <OS>_LATEST")
-@click.option('--image',
-              help="Image ID. See: 'slcli image list' for reference")
-@click.option('--boot-mode',
-              help="Specify the mode to boot the OS in. Supported modes are HVM and PV.",
-              type=click.STRING)
-@click.option('--billing',
-              type=click.Choice(['hourly', 'monthly']),
-              default='hourly',
-              show_default=True,
-              help="Billing rate")
 @click.option('--dedicated/--public', is_flag=True, help="Create a Dedicated Virtual Server")
 @click.option('--host-id', type=click.INT, help="Host Id to provision a Dedicated Host Virtual Server onto")
 @click.option('--san', is_flag=True, help="Use SAN storage instead of local disk.")
