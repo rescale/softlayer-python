@@ -70,84 +70,85 @@ def _update_with_like_args(ctx, _, value):
 
 
 def _parse_create_args(client, args):
-    """Converts CLI arguments to args for VSManager.create_instance.
+    """Converts CLI arguments to args for VSManager.create_instances.
 
     :param dict args: CLI arguments
     """
-    data = {
-        "hourly": args.get('billing', 'hourly') == 'hourly',
-        "cpus": args.get('cpu', None),
-        "ipv6": args.get('ipv6', None),
-        "disks": args.get('disk', None),
-        "os_code": args.get('os', None),
-        "memory": args.get('memory', None),
-        "flavor": args.get('flavor', None),
-        "domain": args.get('domain', None),
-        "host_id": args.get('host_id', None),
-        "private": args.get('private', None),
-        "transient": args.get('transient', None),
-        "hostname": args.get('hostname', None),
-        "nic_speed": args.get('network', None),
-        "boot_mode": args.get('boot_mode', None),
-        "dedicated": args.get('dedicated', None),
-        "post_uri": args.get('postinstall', None),
-        "datacenter": args.get('datacenter', None),
-        "public_vlan": args.get('vlan_public', None),
-        "private_vlan": args.get('vlan_private', None),
-        "public_subnet": args.get('subnet_public', None),
-        "private_subnet": args.get('subnet_private', None),
-    }
+    
+    config_list = []
 
-    # The primary disk is included in the flavor and the local_disk flag is not needed
-    # Setting it to None prevents errors from the flag not matching the flavor
-    if not args.get('san') and args.get('flavor'):
-        data['local_disk'] = None
-    else:
-        data['local_disk'] = not args.get('san')
+    for hostname in args['hostnames'].split(','):
+        data = {
+            "hourly": args.get('billing', 'hourly') == 'hourly',
+            "cpus": args.get('cpu', None),
+            "ipv6": args.get('ipv6', None),
+            "disks": args.get('disk', None),
+            "os_code": args.get('os', None),
+            "memory": args.get('memory', None),
+            "flavor": args.get('flavor', None),
+            "domain": args.get('domain', None),
+            "host_id": args.get('host_id', None),
+            "private": args.get('private', None),
+            "transient": args.get('transient', None),
+            "hostname": args.get('hostname', None),
+            "nic_speed": args.get('network', None),
+            "boot_mode": args.get('boot_mode', None),
+            "dedicated": args.get('dedicated', None),
+            "post_uri": args.get('postinstall', None),
+            "datacenter": args.get('datacenter', None),
+            "public_vlan": args.get('vlan_public', None),
+            "private_vlan": args.get('vlan_private', None),
+            "public_subnet": args.get('subnet_public', None),
+            "private_subnet": args.get('subnet_private', None),
+        }
 
-    if args.get('image'):
-        if args.get('image').isdigit():
-            image_mgr = SoftLayer.ImageManager(client)
-            image_details = image_mgr.get_image(args.get('image'),
-                                                mask="id,globalIdentifier")
-            data['image_id'] = image_details['globalIdentifier']
+        # The primary disk is included in the flavor and the local_disk flag is not needed
+        # Setting it to None prevents errors from the flag not matching the flavor
+        if not args.get('san') and args.get('flavor'):
+            data['local_disk'] = None
         else:
-            data['image_id'] = args['image']
+            data['local_disk'] = not args.get('san')
 
-    if args.get('userdata'):
-        data['userdata'] = args['userdata']
-    elif args.get('userfile'):
-        with open(args['userfile'], 'r') as userfile:
-            data['userdata'] = userfile.read()
+        if args.get('image'):
+            if args.get('image').isdigit():
+                image_mgr = SoftLayer.ImageManager(client)
+                image_details = image_mgr.get_image(args.get('image'),
+                                                    mask="id,globalIdentifier")
+                data['image_id'] = image_details['globalIdentifier']
+            else:
+                data['local_disk'] = not args['san']
+
+        if args.get('userdata'):
+            data['userdata'] = args['userdata']
+        elif args.get('userfile'):
+            with open(args['userfile'], 'r') as userfile:
+                data['userdata'] = userfile.read()
 
     # Get the SSH keys
-    if args.get('key'):
-        keys = []
-        for key in args.get('key'):
-            resolver = SoftLayer.SshKeyManager(client).resolve_ids
-            key_id = helpers.resolve_id(resolver, key, 'SshKey')
-            keys.append(key_id)
-        data['ssh_keys'] = keys
+        if args.get('key'):
+           keys = []
+            for key in args.get('key'):
+                resolver = SoftLayer.SshKeyManager(client).resolve_ids
+                key_id = helpers.resolve_id(resolver, key, 'SshKey')
+                keys.append(key_id)
+            data['ssh_keys'] = keys
 
-    if args.get('public_security_group'):
-        pub_groups = args.get('public_security_group')
-        data['public_security_groups'] = [group for group in pub_groups]
+        if args.get('public_security_group'):
+            pub_groups = args.get('public_security_group')
+            data['public_security_groups'] = [group for group in pub_groups]
+        if args.get('private_security_group'):
+            priv_groups = args.get('private_security_group')
+            data['private_security_groups'] = [group for group in priv_groups]
 
-    if args.get('private_security_group'):
-        priv_groups = args.get('private_security_group')
-        data['private_security_groups'] = [group for group in priv_groups]
+        if args.get('tag'):
+            data['tags'] = ','.join(args['tag'])
 
-    if args.get('tag', False):
-        data['tags'] = ','.join(args['tag'])
+        if args.get('placementgroup'):
+            resolver = SoftLayer.managers.PlacementManager(client).resolve_ids
+            data['placement_id'] = helpers.resolve_id(resolver, args.get('placementgroup'), 'PlacementGroup')
 
-    if args.get('host_id'):
-        data['host_id'] = args['host_id']
-
-    if args.get('placementgroup'):
-        resolver = SoftLayer.managers.PlacementManager(client).resolve_ids
-        data['placement_id'] = helpers.resolve_id(resolver, args.get('placementgroup'), 'PlacementGroup')
-
-    return data
+        config_list.append(data)
+    return config_list
 
 
 @click.command(epilog="See 'slcli vs create-options' for valid options")
@@ -258,12 +259,13 @@ def cli(env, **args):
         env.fout('Successfully exported options to a template file.')
 
     else:
-        result = vsi.order_guest(create_args, test)
-        output = _build_receipt_table(result, args.get('billing'), test)
+        for create_args in config_list:
+            result = vsi.order_guest(create_args, test)
+            output = _build_receipt_table(result, args.get('billing'), test)
 
-        if do_create:
-            env.fout(_build_guest_table(result))
-        env.fout(output)
+            if do_create:
+                env.fout(_build_guest_table(result))
+            env.fout(output)
 
         if args.get('wait'):
             virtual_guests = utils.lookup(result, 'orderDetails', 'virtualGuests')
@@ -273,6 +275,7 @@ def cli(env, **args):
             if ready is False:
                 env.out(env.fmt(output))
                 raise exceptions.CLIHalt(code=1)
+                
         if args['output_json']:
             env.fout(json.dumps({'statuses': result}))
         else:
@@ -310,7 +313,6 @@ def _build_receipt_table(result, billing="hourly", test=False):
         table.add_row([rate, item['item']['description']])
     table.add_row(["%.3f" % total, "Total %s cost" % billing])
     return table
-
 
 def _build_guest_table(result):
     table = formatting.Table(['ID', 'FQDN', 'guid', 'Order Date'])

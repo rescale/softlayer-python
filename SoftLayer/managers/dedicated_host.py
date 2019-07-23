@@ -602,7 +602,6 @@ class DedicatedHostManager(utils.IdentifierMixin, object):
             self.guest.deleteObject(id=guest_id)
         except SoftLayer.SoftLayerAPIError as e:
             msg = 'Exception: ' + e.faultString
-
         return msg
 
     # @retry(logger=LOGGER)
