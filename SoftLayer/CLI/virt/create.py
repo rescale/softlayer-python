@@ -90,7 +90,7 @@ def _parse_create_args(client, args):
             "host_id": args.get('host_id', None),
             "private": args.get('private', None),
             "transient": args.get('transient', None),
-            "hostname": args.get('hostname', None),
+            "hostname": hostname,
             "nic_speed": args.get('network', None),
             "boot_mode": args.get('boot_mode', None),
             "dedicated": args.get('dedicated', None),
@@ -126,7 +126,7 @@ def _parse_create_args(client, args):
 
     # Get the SSH keys
         if args.get('key'):
-           keys = []
+            keys = []
             for key in args.get('key'):
                 resolver = SoftLayer.SshKeyManager(client).resolve_ids
                 key_id = helpers.resolve_id(resolver, key, 'SshKey')
@@ -152,7 +152,6 @@ def _parse_create_args(client, args):
 
 
 @click.command(epilog="See 'slcli vs create-options' for valid options")
-@click.option('--hostname', '-H', required=True, prompt=True, help="Host portion of the FQDN")
 @click.option('--domain', '-D', required=True, prompt=True, help="Domain portion of the FQDN")
 @click.option('--cpu', '-c', type=click.INT, help="Number of CPU cores (not available with flavors)")
 @click.option('--memory', '-m', type=virt.MEM_TYPE, help="Memory in mebibytes (not available with flavors)")
@@ -244,7 +243,7 @@ def cli(env, **args):
 
     vsi = SoftLayer.VSManager(env.client)
     _validate_args(env, args)
-    create_args = _parse_create_args(env.client, args)
+    config_list = _parse_create_args(env.client, args)
     test = args.get('test', False)
     do_create = not (args.get('export') or test)
 
@@ -259,37 +258,12 @@ def cli(env, **args):
         env.fout('Successfully exported options to a template file.')
 
     else:
-        for create_args in config_list:
-            result = vsi.order_guest(create_args, test)
-            output = _build_receipt_table(result, args.get('billing'), test)
-
-            if do_create:
-                env.fout(_build_guest_table(result))
-            env.fout(output)
-
-        if args.get('wait'):
-            virtual_guests = utils.lookup(result, 'orderDetails', 'virtualGuests')
-            guest_id = virtual_guests[0]['id']
-            click.secho("Waiting for %s to finish provisioning..." % guest_id, fg='green')
-            ready = vsi.wait_for_ready(guest_id, args.get('wait') or 1)
-            if ready is False:
-                env.out(env.fmt(output))
-                raise exceptions.CLIHalt(code=1)
-                
+        result = vsi.create_instances(config_list)
         if args['output_json']:
             env.fout(json.dumps({'statuses': result}))
         else:
-            for instance_data in result:
-                table = formatting.KeyValueTable(['name', 'value'])
-                table.align['name'] = 'r'
-                table.align['value'] = 'l'
-                table.add_row(['id', instance_data['id']])
-                table.add_row(['hostname', instance_data['hostname']])
-                table.add_row(['created', instance_data['createDate']])
-                table.add_row(['uuid', instance_data['uuid']])
-                output.append(table)
+            env.fout(result)
 
-            env.fout(output)
 
 def _build_receipt_table(result, billing="hourly", test=False):
     """Retrieve the total recurring fee of the items prices"""
@@ -313,6 +287,7 @@ def _build_receipt_table(result, billing="hourly", test=False):
         table.add_row([rate, item['item']['description']])
     table.add_row(["%.3f" % total, "Total %s cost" % billing])
     return table
+
 
 def _build_guest_table(result):
     table = formatting.Table(['ID', 'FQDN', 'guid', 'Order Date'])
