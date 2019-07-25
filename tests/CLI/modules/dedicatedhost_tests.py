@@ -61,7 +61,8 @@ class DedicatedHostsTests(testing.TestCase):
                              'owner': 'test-dedicated',
                              'price_rate': 1515.556,
                              'router hostname': 'bcr01a.dal05',
-                             'router id': 12345}
+                             'router id': 12345,
+                             'tags': None}
                          )
 
     def test_details_no_owner(self):
@@ -91,7 +92,8 @@ class DedicatedHostsTests(testing.TestCase):
                                                      'owner': None,
                                                      'price_rate': 0,
                                                      'router hostname': 'bcr01a.dal05',
-                                                     'router id': 12345}
+                                                     'router id': 12345,
+                                                     'tags': None}
                          )
 
     def test_create_options(self):
@@ -154,7 +156,7 @@ class DedicatedHostsTests(testing.TestCase):
         mock_package_obj.return_value = SoftLayer_Product_Package.getAllObjectsDH
 
         result = self.run_command(['dedicatedhost', 'create',
-                                   '--hostname=test-dedicated',
+                                   '--hostnames=test-dedicated',
                                    '--domain=test.com',
                                    '--datacenter=dal05',
                                    '--flavor=56_CORES_X_242_RAM_X_1_4_TB',
@@ -190,7 +192,7 @@ class DedicatedHostsTests(testing.TestCase):
         mock_package_obj.return_value = SoftLayer_Product_Package.getAllObjectsDHGpu
 
         result = self.run_command(['dedicatedhost', 'create',
-                                   '--hostname=test-dedicated',
+                                   '--hostnames=test-dedicated',
                                    '--domain=test.com',
                                    '--datacenter=dal05',
                                    '--flavor=56_CORES_X_484_RAM_X_1_5_TB_X_2_GPU_P100',
@@ -228,7 +230,7 @@ class DedicatedHostsTests(testing.TestCase):
 
         result = self.run_command(['dedicatedhost', 'create',
                                    '--verify',
-                                   '--hostname=test-dedicated',
+                                   '--hostnames=test-dedicated',
                                    '--domain=test.com',
                                    '--datacenter=dal05',
                                    '--flavor=56_CORES_X_242_RAM_X_1_4_TB',
@@ -258,7 +260,7 @@ class DedicatedHostsTests(testing.TestCase):
 
         result = self.run_command(['dh', 'create',
                                    '--verify',
-                                   '--hostname=test-dedicated',
+                                   '--hostnames=test-dedicated',
                                    '--domain=test.com',
                                    '--datacenter=dal05',
                                    '--flavor=56_CORES_X_242_RAM_X_1_4_TB',
@@ -291,7 +293,7 @@ class DedicatedHostsTests(testing.TestCase):
         mock_package_obj.return_value = SoftLayer_Product_Package.getAllObjectsDH
 
         result = self.run_command(['dh', 'create',
-                                   '--hostname=test-dedicated',
+                                   '--hostnames=test-dedicated',
                                    '--domain=test.com',
                                    '--datacenter=dal05',
                                    '--flavor=56_CORES_X_242_RAM_X_1_4_TB',
@@ -310,7 +312,7 @@ class DedicatedHostsTests(testing.TestCase):
 
         result = self.run_command(['dedicatedhost', 'create',
                                    '--verify',
-                                   '--hostname=test-dedicated',
+                                   '--hostnames=test-dedicated',
                                    '--domain=test.com',
                                    '--datacenter=dal05',
                                    '--flavor=56_CORES_X_242_RAM_X_1_4_TB',

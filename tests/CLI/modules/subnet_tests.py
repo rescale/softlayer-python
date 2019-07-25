@@ -36,7 +36,7 @@ class SubnetTests(testing.TestCase):
                         'private_ip': '10.0.1.2'
                     }
                 ],
-                'hardware': 'none',
+                'hardware': [],
                 'usable ips': 22
             },
             json.loads(result.output))

@@ -20,7 +20,7 @@ class VirtCreateTests(testing.TestCase):
         result = self.run_command(['vs', 'create',
                                    '--cpu=2',
                                    '--domain=example.com',
-                                   '--hostname=host',
+                                   '--hostnames=host',
                                    '--os=UBUNTU_LATEST',
                                    '--memory=1',
                                    '--network=100',
@@ -441,7 +441,7 @@ class VirtCreateTests(testing.TestCase):
                  'blockDeviceTemplateGroup': {'globalIdentifier': 'aaa1xxx1122233'},
                  'networkComponents': [{'maxSpeed': 100}],
                  'supplementalCreateObjectOptions': {'bootMode': None}},)
-        self.assert_called_with('SoftLayer_Virtual_Guest', 'generateOrderTemplate', args=args)
+        self.assert_called_with('SoftLayer_Virtual_Guest', 'generateOrderTemplate', args=args)  #
 
     @mock.patch('SoftLayer.CLI.formatting.confirm')
     def test_create_like_flavor(self, confirm_mock):

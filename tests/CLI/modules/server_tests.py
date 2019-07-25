@@ -293,7 +293,7 @@ class ServerCLITests(testing.TestCase):
 
         result = self.run_command(['--really', 'server', 'create',
                                    '--size=S1270_8GB_2X1TBSATA_NORAID',
-                                   '--hostname=test',
+                                   '--hostnames=test',
                                    '--domain=example.com',
                                    '--datacenter=TEST00',
                                    '--port-speed=100',
@@ -332,7 +332,7 @@ class ServerCLITests(testing.TestCase):
 
         result = self.run_command(['--really', 'server', 'create',
                                    '--size=S1270_8GB_2X1TBSATA_NORAID',
-                                   '--hostname=test',
+                                   '--hostnames=test',
                                    '--domain=example.com',
                                    '--datacenter=TEST00',
                                    '--port-speed=100',
@@ -350,7 +350,7 @@ class ServerCLITests(testing.TestCase):
         # This is missing a required argument
         result = self.run_command(['server', 'create',
                                    # Note: no chassis id
-                                   '--hostname=test',
+                                   '--hostnames=test',
                                    '--domain=example.com',
                                    '--datacenter=TEST00',
                                    '--network=100',
@@ -366,7 +366,7 @@ class ServerCLITests(testing.TestCase):
             self.skipTest("Test doesn't work in Windows")
         result = self.run_command(['--really', 'server', 'create',
                                    '--size=S1270_8GB_2X1TBSATA_NORAID',
-                                   '--hostname=test',
+                                   '--hostnames=test',
                                    '--domain=example.com',
                                    '--datacenter=TEST00',
                                    '--port-speed=100',
@@ -383,7 +383,7 @@ class ServerCLITests(testing.TestCase):
                                         'datacenter': 'TEST00',
                                         'domain': 'example.com',
                                         'extra': (),
-                                        'hostname': 'test',
+                                        'hostnames': 'test',
                                         'key': (),
                                         'os': 'UBUNTU_12_64',
                                         'port_speed': 100,
@@ -392,7 +392,11 @@ class ServerCLITests(testing.TestCase):
                                         'test': False,
                                         'no_public': True,
                                         'wait': None,
-                                        'template': None},
+                                        'template': None,
+                                        'output_json': False,
+                                        'subnet_private': None,
+                                        'vlan_private': None,
+                                        'quantity': 1,},
                                        exclude=['wait', 'test'])
 
     def test_edit_server_userdata_and_file(self):

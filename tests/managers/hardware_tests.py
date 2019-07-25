@@ -18,7 +18,7 @@ from SoftLayer import testing
 
 MINIMAL_TEST_CREATE_ARGS = {
     'size': 'S1270_8GB_2X1TBSATA_NORAID',
-    'hostname': 'unicorn',
+    'hostnames': ['unicorn'],
     'domain': 'giggles.woo',
     'location': 'wdc01',
     'os': 'UBUNTU_14_64',
@@ -177,7 +177,7 @@ class HardwareTests(testing.TestCase):
     def test_generate_create_dict_invalid_size(self):
         args = {
             'size': 'UNKNOWN_SIZE',
-            'hostname': 'unicorn',
+            'hostnames': ['unicorn'],
             'domain': 'giggles.woo',
             'location': 'wdc01',
             'os': 'UBUNTU_14_64',
@@ -191,7 +191,7 @@ class HardwareTests(testing.TestCase):
     def test_generate_create_dict(self):
         args = {
             'size': 'S1270_8GB_2X1TBSATA_NORAID',
-            'hostname': 'unicorn',
+            'hostnames': ['unicorn'],
             'domain': 'giggles.woo',
             'location': 'wdc01',
             'os': 'UBUNTU_14_64',
@@ -220,6 +220,7 @@ class HardwareTests(testing.TestCase):
             'useHourlyPricing': True,
             'provisionScripts': ['http://example.com/script.php'],
             'sshKeys': [{'sshKeyIds': [10]}],
+            'quantity': 1,
         }
 
         data = self.hardware._generate_create_dict(**args)

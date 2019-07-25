@@ -78,7 +78,14 @@ class DedicatedHostTests(testing.TestCase):
                     domain,
                     uuid
                 ],
-                guestCount
+                guestCount,
+                tagReferences[
+                    id,
+                    tag[
+                        name,
+                        id
+                    ]
+                ]
             ''')
         self.dedicated_host.host.getObject.assert_called_once_with(id=12345, mask=mask)
 
@@ -116,13 +123,13 @@ class DedicatedHostTests(testing.TestCase):
         hourly = True
         flavor = '56_CORES_X_242_RAM_X_1_4_TB'
 
-        self.dedicated_host.place_order(hostname=hostname,
+        self.dedicated_host.place_order(hostnames=[hostname],
                                         domain=domain,
                                         location=location,
                                         flavor=flavor,
                                         hourly=hourly)
 
-        create_dict.assert_called_once_with(hostname=hostname,
+        create_dict.assert_called_once_with(hostnames=[hostname],
                                             router=None,
                                             domain=domain,
                                             datacenter=location,
@@ -167,13 +174,13 @@ class DedicatedHostTests(testing.TestCase):
         hourly = True
         flavor = '56_CORES_X_484_RAM_X_1_5_TB_X_2_GPU_P100'
 
-        self.dedicated_host.place_order(hostname=hostname,
+        self.dedicated_host.place_order(hostnames=[hostname],
                                         domain=domain,
                                         location=location,
                                         flavor=flavor,
                                         hourly=hourly)
 
-        create_dict.assert_called_once_with(hostname=hostname,
+        create_dict.assert_called_once_with(hostnames=[hostname],
                                             router=None,
                                             domain=domain,
                                             datacenter=location,
@@ -218,13 +225,13 @@ class DedicatedHostTests(testing.TestCase):
         hourly = True
         flavor = '56_CORES_X_242_RAM_X_1_4_TB'
 
-        self.dedicated_host.verify_order(hostname=hostname,
+        self.dedicated_host.verify_order(hostnames=[hostname],
                                          domain=domain,
                                          location=location,
                                          flavor=flavor,
                                          hourly=hourly)
 
-        create_dict.assert_called_once_with(hostname=hostname,
+        create_dict.assert_called_once_with(hostnames=[hostname],
                                             router=None,
                                             domain=domain,
                                             datacenter=location,
@@ -248,7 +255,7 @@ class DedicatedHostTests(testing.TestCase):
         hourly = True
         flavor = '56_CORES_X_242_RAM_X_1_4_TB'
 
-        results = self.dedicated_host._generate_create_dict(hostname=hostname,
+        results = self.dedicated_host._generate_create_dict(hostnames=[hostname],
                                                             domain=domain,
                                                             datacenter=location,
                                                             flavor=flavor,
@@ -294,7 +301,7 @@ class DedicatedHostTests(testing.TestCase):
         flavor = '56_CORES_X_242_RAM_X_1_4_TB'
 
         results = self.dedicated_host._generate_create_dict(
-            hostname=hostname,
+            hostnames=[hostname],
             router=router,
             domain=domain,
             datacenter=location,
