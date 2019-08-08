@@ -92,8 +92,9 @@ def cli(env, identifier, passwords=False, price=False, output_json=False,
     table.add_row(_get_owner_row(result))
     table.add_row(_get_vlan_table(result))
 
-    bandwidth = vsi.get_bandwidth_allocation(vs_id)
-    table.add_row(['Bandwidth', _bw_table(bandwidth)])
+    # Bug in v5.7.2
+    # bandwidth = vsi.get_bandwidth_allocation(vs_id)
+    # table.add_row(['Bandwidth', _bw_table(bandwidth)])
 
     security_table = _get_security_table(result)
     if security_table is not None:

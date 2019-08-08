@@ -80,9 +80,10 @@ def cli(env, identifier, passwords, price, output_json, verbose):
 
     table.add_row(['vlans', vlan_table])
 
-    bandwidth = hardware.get_bandwidth_allocation(hardware_id)
-    bw_table = _bw_table(bandwidth)
-    table.add_row(['Bandwidth', bw_table])
+    # Bug in v5.7.2
+    # bandwidth = hardware.get_bandwidth_allocation(hardware_id)
+    # bw_table = _bw_table(bandwidth)
+    # table.add_row(['Bandwidth', bw_table])
 
     if result.get('notes'):
         table.add_row(['notes', result['notes']])
