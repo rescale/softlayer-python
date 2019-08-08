@@ -41,7 +41,7 @@ class SshKeyTests(testing.TestCase):
 
         self.assert_no_fail(result)
         self.assertEqual(json.loads(result.output),
-                         "SSH key added: aa:bb:cc:dd")
+                         {'fingerprint': 'aa:bb:cc:dd', 'id': 1234, 'label': 'label'})
         self.assert_called_with('SoftLayer_Security_Ssh_Key', 'createObject',
                                 args=({'notes': 'my key',
                                        'key': mock_key,
@@ -55,7 +55,7 @@ class SshKeyTests(testing.TestCase):
 
         self.assert_no_fail(result)
         self.assertEqual(json.loads(result.output),
-                         "SSH key added: aa:bb:cc:dd")
+                         {'fingerprint': 'aa:bb:cc:dd', 'id': 1234, 'label': 'label'})
         service = self.client['Security_Ssh_Key']
         mock_key = service.getObject()['key']
         self.assert_called_with('SoftLayer_Security_Ssh_Key', 'createObject',
